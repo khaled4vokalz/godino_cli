@@ -85,9 +85,9 @@ func TestDinosaurUpdate_AnimationFrames(t *testing.T) {
 		t.Error("Expected animation frame to change after sufficient time")
 	}
 
-	// Frame should be 0 or 1 (alternating)
-	if dino.AnimFrame < 0 || dino.AnimFrame > 1 {
-		t.Errorf("Expected animation frame to be 0 or 1, got %d", dino.AnimFrame)
+	// Frame should be 0, 1, 2, or 3 (cycling through 4 frames)
+	if dino.AnimFrame < 0 || dino.AnimFrame > 3 {
+		t.Errorf("Expected animation frame to be 0-3, got %d", dino.AnimFrame)
 	}
 }
 
@@ -149,8 +149,22 @@ func TestDinosaurGetASCIIArt_Running(t *testing.T) {
 		t.Errorf("Expected ASCII art to have 6 lines, got %d", len(art2))
 	}
 
-	// The two frames should be different
-	if art[5] == art2[5] { // Last line should be different between frames
+	// Test frame 2
+	dino.AnimFrame = 2
+	art3 := dino.GetASCIIArt()
+	if len(art3) != 6 {
+		t.Errorf("Expected ASCII art to have 6 lines, got %d", len(art3))
+	}
+
+	// Test frame 3
+	dino.AnimFrame = 3
+	art4 := dino.GetASCIIArt()
+	if len(art4) != 6 {
+		t.Errorf("Expected ASCII art to have 6 lines, got %d", len(art4))
+	}
+
+	// The frames should be different from each other
+	if art[5] == art2[5] && art2[5] == art3[5] && art3[5] == art4[5] {
 		t.Error("Expected different ASCII art between animation frames")
 	}
 }
@@ -486,5 +500,225 @@ func TestDinosaurJumpWithDifferentConfigs(t *testing.T) {
 	// Higher gravity should result in higher velocity after update
 	if dino3.VelocityY <= dino4.VelocityY {
 		t.Error("Expected higher gravity to result in higher velocity after update")
+	}
+}
+
+// Animation-specific tests
+
+func TestDinosaurAnimationFrameProgression(t *testing.T) {
+	dino := NewDinosaur(15.0)
+	config := &engine.Config{Gravity: 50.0, JumpVelocity: 15.0}
+
+	// Ensure dinosaur is running
+	dino.IsRunning = true
+	dino.IsJumping = false
+
+	// Set animation update time to past to trigger frame changes
+	dino.lastAnimUpdate = time.Now().Add(-time.Millisecond * 200)
+
+	// Test frame progression: 0 -> 1 -> 2 -> 3 -> 0
+	expectedFrames := []int{1, 2, 3, 0}
+
+	for i, expectedFrame := range expectedFrames {
+		dino.Update(0.1, config)
+		if dino.AnimFrame != expectedFrame {
+			t.Errorf("Update %d: Expected animation frame to be %d, got %d", i+1, expectedFrame, dino.AnimFrame)
+		}
+		// Reset timer for next update
+		dino.lastAnimUpdate = time.Now().Add(-time.Millisecond * 200)
+	}
+}
+
+func TestDinosaurAnimationFrameCycling(t *testing.T) {
+	dino := NewDinosaur(15.0)
+	config := &engine.Config{Gravity: 50.0, JumpVelocity: 15.0}
+
+	dino.IsRunning = true
+	dino.IsJumping = false
+
+	// Test multiple complete cycles
+	framesSeen := make(map[int]bool)
+
+	for i := 0; i < 20; i++ {
+		dino.lastAnimUpdate = time.Now().Add(-time.Millisecond * 200)
+		dino.Update(0.1, config)
+		framesSeen[dino.AnimFrame] = true
+	}
+
+	// Should have seen all 4 frames (0, 1, 2, 3)
+	for frame := 0; frame < 4; frame++ {
+		if !framesSeen[frame] {
+			t.Errorf("Expected to see animation frame %d during cycling", frame)
+		}
+	}
+}
+
+func TestDinosaurAnimationTiming(t *testing.T) {
+	dino := NewDinosaur(15.0)
+	config := &engine.Config{Gravity: 50.0, JumpVelocity: 15.0}
+
+	dino.IsRunning = true
+	dino.IsJumping = false
+	initialFrame := dino.AnimFrame
+
+	// Update with insufficient time elapsed - frame should not change
+	dino.lastAnimUpdate = time.Now().Add(-time.Millisecond * 50) // Less than animSpeed (150ms)
+	dino.Update(0.1, config)
+
+	if dino.AnimFrame != initialFrame {
+		t.Error("Expected animation frame to not change when insufficient time has elapsed")
+	}
+
+	// Update with sufficient time elapsed - frame should change
+	dino.lastAnimUpdate = time.Now().Add(-time.Millisecond * 200) // More than animSpeed (150ms)
+	dino.Update(0.1, config)
+
+	if dino.AnimFrame == initialFrame {
+		t.Error("Expected animation frame to change when sufficient time has elapsed")
+	}
+}
+
+func TestDinosaurGetAnimationFrame(t *testing.T) {
+	dino := NewDinosaur(15.0)
+
+	// Test getting animation frame
+	dino.AnimFrame = 2
+	if dino.GetAnimationFrame() != 2 {
+		t.Errorf("Expected GetAnimationFrame() to return 2, got %d", dino.GetAnimationFrame())
+	}
+}
+
+func TestDinosaurSetAnimationSpeed(t *testing.T) {
+	dino := NewDinosaur(15.0)
+	newSpeed := time.Millisecond * 100
+
+	dino.SetAnimationSpeed(newSpeed)
+
+	if dino.GetAnimationSpeed() != newSpeed {
+		t.Errorf("Expected animation speed to be %v, got %v", newSpeed, dino.GetAnimationSpeed())
+	}
+}
+
+func TestDinosaurResetAnimation(t *testing.T) {
+	dino := NewDinosaur(15.0)
+
+	// Set to non-zero frame
+	dino.AnimFrame = 3
+	oldTime := dino.lastAnimUpdate
+
+	// Wait a bit to ensure time difference
+	time.Sleep(time.Millisecond * 10)
+
+	dino.ResetAnimation()
+
+	if dino.AnimFrame != 0 {
+		t.Errorf("Expected animation frame to be reset to 0, got %d", dino.AnimFrame)
+	}
+
+	if !dino.lastAnimUpdate.After(oldTime) {
+		t.Error("Expected lastAnimUpdate to be updated after ResetAnimation()")
+	}
+}
+
+func TestDinosaurIsAnimating(t *testing.T) {
+	dino := NewDinosaur(15.0)
+
+	// Test running and not jumping - should be animating
+	dino.IsRunning = true
+	dino.IsJumping = false
+	if !dino.IsAnimating() {
+		t.Error("Expected dinosaur to be animating when running and not jumping")
+	}
+
+	// Test not running - should not be animating
+	dino.IsRunning = false
+	dino.IsJumping = false
+	if dino.IsAnimating() {
+		t.Error("Expected dinosaur to not be animating when not running")
+	}
+
+	// Test jumping - should not be animating
+	dino.IsRunning = true
+	dino.IsJumping = true
+	if dino.IsAnimating() {
+		t.Error("Expected dinosaur to not be animating when jumping")
+	}
+}
+
+func TestDinosaurAnimationWithDifferentSpeeds(t *testing.T) {
+	dino := NewDinosaur(15.0)
+	config := &engine.Config{Gravity: 50.0, JumpVelocity: 15.0}
+
+	// Test with fast animation
+	fastSpeed := time.Millisecond * 50
+	dino.SetAnimationSpeed(fastSpeed)
+	dino.IsRunning = true
+	dino.IsJumping = false
+
+	initialFrame := dino.AnimFrame
+	dino.lastAnimUpdate = time.Now().Add(-time.Millisecond * 60) // Just over fast speed
+	dino.Update(0.1, config)
+
+	if dino.AnimFrame == initialFrame {
+		t.Error("Expected animation frame to change with fast animation speed")
+	}
+
+	// Test with slow animation
+	slowSpeed := time.Millisecond * 500
+	dino.SetAnimationSpeed(slowSpeed)
+	dino.AnimFrame = 0
+
+	dino.lastAnimUpdate = time.Now().Add(-time.Millisecond * 200) // Less than slow speed
+	dino.Update(0.1, config)
+
+	if dino.AnimFrame != 0 {
+		t.Error("Expected animation frame to not change with slow animation speed and insufficient time")
+	}
+}
+
+func TestDinosaurAllAnimationFramesValid(t *testing.T) {
+	dino := NewDinosaur(15.0)
+	dino.IsJumping = false
+	dino.IsRunning = true
+
+	// Test all 4 animation frames produce valid ASCII art
+	for frame := 0; frame < 4; frame++ {
+		dino.AnimFrame = frame
+		art := dino.GetASCIIArt()
+
+		if len(art) != 6 {
+			t.Errorf("Frame %d: Expected ASCII art to have 6 lines, got %d", frame, len(art))
+		}
+
+		// Each line should have content
+		for lineNum, line := range art {
+			if len(line) == 0 {
+				t.Errorf("Frame %d, line %d: Expected non-empty ASCII art line", frame, lineNum)
+			}
+		}
+	}
+}
+
+func TestDinosaurAnimationFrameOutOfBounds(t *testing.T) {
+	dino := NewDinosaur(15.0)
+	dino.IsJumping = false
+	dino.IsRunning = true
+
+	// Test with out-of-bounds frame (should fallback to frame 0)
+	dino.AnimFrame = 10
+	art := dino.GetASCIIArt()
+
+	if len(art) != 6 {
+		t.Errorf("Expected ASCII art to have 6 lines for out-of-bounds frame, got %d", len(art))
+	}
+
+	// Should be same as frame 0
+	dino.AnimFrame = 0
+	art0 := dino.GetASCIIArt()
+
+	for i, line := range art {
+		if line != art0[i] {
+			t.Errorf("Expected out-of-bounds frame to fallback to frame 0, but line %d differs", i)
+		}
 	}
 }

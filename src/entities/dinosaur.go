@@ -38,7 +38,7 @@ func NewDinosaur(groundLevel float64) *Dinosaur {
 		AnimFrame:      0,
 		GroundLevel:    groundLevel,
 		lastAnimUpdate: time.Now(),
-		animSpeed:      time.Millisecond * 200, // Animation frame duration
+		animSpeed:      time.Millisecond * 150, // Animation frame duration for smoother 4-frame animation
 		Width:          8.0,                    // Width of dinosaur sprite
 		Height:         6.0,                    // Height of dinosaur sprite
 	}
@@ -81,7 +81,7 @@ func (d *Dinosaur) Update(deltaTime float64, config *engine.Config) {
 		if d.IsRunning {
 			now := time.Now()
 			if now.Sub(d.lastAnimUpdate) >= d.animSpeed {
-				d.AnimFrame = (d.AnimFrame + 1) % 2 // Alternate between 2 frames
+				d.AnimFrame = (d.AnimFrame + 1) % 4 // Cycle through 4 frames
 				d.lastAnimUpdate = now
 			}
 		}
@@ -112,9 +112,10 @@ func (d *Dinosaur) GetASCIIArt() []string {
 		}
 	}
 
-	// Running animation - alternate between two frames
-	if d.AnimFrame == 0 {
-		// Running frame 1
+	// Running animation with 4 frames for smoother animation
+	switch d.AnimFrame {
+	case 0:
+		// Running frame 1 - left leg forward
 		return []string{
 			"        ████████",
 			"        ██    ██",
@@ -123,8 +124,18 @@ func (d *Dinosaur) GetASCIIArt() []string {
 			"██      ██      ",
 			"████    ██  ██  ",
 		}
-	} else {
-		// Running frame 2
+	case 1:
+		// Running frame 2 - both legs center
+		return []string{
+			"        ████████",
+			"        ██    ██",
+			"        ████████",
+			"        ██████  ",
+			"██      ██      ",
+			"████    ████    ",
+		}
+	case 2:
+		// Running frame 3 - right leg forward
 		return []string{
 			"        ████████",
 			"        ██    ██",
@@ -132,6 +143,26 @@ func (d *Dinosaur) GetASCIIArt() []string {
 			"        ██████  ",
 			"██      ██      ",
 			"████    ██    ██",
+		}
+	case 3:
+		// Running frame 4 - both legs center (slight variation)
+		return []string{
+			"        ████████",
+			"        ██    ██",
+			"        ████████",
+			"        ██████  ",
+			"██      ██      ",
+			"████      ██    ",
+		}
+	default:
+		// Fallback to frame 0
+		return []string{
+			"        ████████",
+			"        ██    ██",
+			"        ████████",
+			"        ██████  ",
+			"██      ██      ",
+			"████    ██  ██  ",
 		}
 	}
 }
@@ -158,4 +189,30 @@ func (d *Dinosaur) GetJumpHeight() float64 {
 		return d.GroundLevel - d.Y
 	}
 	return 0.0
+}
+
+// GetAnimationFrame returns the current animation frame
+func (d *Dinosaur) GetAnimationFrame() int {
+	return d.AnimFrame
+}
+
+// SetAnimationSpeed sets the speed of the running animation
+func (d *Dinosaur) SetAnimationSpeed(speed time.Duration) {
+	d.animSpeed = speed
+}
+
+// GetAnimationSpeed returns the current animation speed
+func (d *Dinosaur) GetAnimationSpeed() time.Duration {
+	return d.animSpeed
+}
+
+// ResetAnimation resets the animation to frame 0 and updates the timer
+func (d *Dinosaur) ResetAnimation() {
+	d.AnimFrame = 0
+	d.lastAnimUpdate = time.Now()
+}
+
+// IsAnimating returns true if the dinosaur is currently animating (running)
+func (d *Dinosaur) IsAnimating() bool {
+	return d.IsRunning && !d.IsJumping
 }
