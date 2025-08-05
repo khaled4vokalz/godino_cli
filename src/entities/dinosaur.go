@@ -44,23 +44,48 @@ func NewDinosaur(groundLevel float64) *Dinosaur {
 	}
 }
 
+// Jump initiates a jump if the dinosaur is on the ground
+func (d *Dinosaur) Jump(config *engine.Config) {
+	// Only allow jumping if dinosaur is on the ground
+	if d.IsOnGround() {
+		d.IsJumping = true
+		d.VelocityY = -config.JumpVelocity // Negative because Y increases downward
+		d.IsRunning = false                // Stop running animation while jumping
+	}
+}
+
 // Update updates the dinosaur's state and position
-func (d *Dinosaur) Update(deltaTime float64) {
+func (d *Dinosaur) Update(deltaTime float64, config *engine.Config) {
 	// Dinosaur stays in a fixed horizontal position
 	// The world/obstacles will scroll past the dinosaur instead
 	// No horizontal movement needed - X position remains constant
 
-	// Update running animation if on ground
-	if !d.IsJumping && d.IsRunning {
-		now := time.Now()
-		if now.Sub(d.lastAnimUpdate) >= d.animSpeed {
-			d.AnimFrame = (d.AnimFrame + 1) % 2 // Alternate between 2 frames
-			d.lastAnimUpdate = now
+	// Handle jumping physics
+	if d.IsJumping {
+		// Update vertical position based on current velocity (before applying gravity)
+		d.Y += d.VelocityY * deltaTime
+
+		// Apply gravity to velocity (for next frame)
+		d.VelocityY += config.Gravity * deltaTime
+
+		// Check for landing
+		if d.Y >= d.GroundLevel {
+			// Land on ground
+			d.Y = d.GroundLevel
+			d.VelocityY = 0.0
+			d.IsJumping = false
+			d.IsRunning = true // Resume running animation
+		}
+	} else {
+		// Update running animation if on ground
+		if d.IsRunning {
+			now := time.Now()
+			if now.Sub(d.lastAnimUpdate) >= d.animSpeed {
+				d.AnimFrame = (d.AnimFrame + 1) % 2 // Alternate between 2 frames
+				d.lastAnimUpdate = now
+			}
 		}
 	}
-
-	// Future: Vertical movement (jumping) will be handled here
-	// when jump mechanics are implemented in later tasks
 }
 
 // GetBounds returns the collision rectangle for the dinosaur
@@ -125,4 +150,12 @@ func (d *Dinosaur) SetPosition(x, y float64) {
 // IsOnGround returns true if the dinosaur is on the ground
 func (d *Dinosaur) IsOnGround() bool {
 	return d.Y >= d.GroundLevel && !d.IsJumping
+}
+
+// GetJumpHeight returns the current height above ground level
+func (d *Dinosaur) GetJumpHeight() float64 {
+	if d.Y < d.GroundLevel {
+		return d.GroundLevel - d.Y
+	}
+	return 0.0
 }
