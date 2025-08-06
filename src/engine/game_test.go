@@ -38,15 +38,35 @@ func TestGameEngineStateManagement(t *testing.T) {
 	config := NewDefaultConfig()
 	ge := NewGameEngine(config)
 
+	// Test initial state
+	if ge.GetState() != StateMenu {
+		t.Error("Initial state should be Menu")
+	}
+	if ge.GetPreviousState() != StateMenu {
+		t.Error("Initial previous state should be Menu")
+	}
+
 	// Test state transitions
 	ge.SetState(StatePlaying)
 	if ge.GetState() != StatePlaying {
 		t.Error("State should be set to Playing")
 	}
+	if ge.GetPreviousState() != StateMenu {
+		t.Error("Previous state should be Menu")
+	}
 
 	ge.SetState(StateGameOver)
 	if ge.GetState() != StateGameOver {
 		t.Error("State should be set to GameOver")
+	}
+	if ge.GetPreviousState() != StatePlaying {
+		t.Error("Previous state should be Playing")
+	}
+
+	// Test setting same state (should not change previous state)
+	ge.SetState(StateGameOver)
+	if ge.GetPreviousState() != StatePlaying {
+		t.Error("Previous state should remain Playing when setting same state")
 	}
 }
 
@@ -342,5 +362,305 @@ func TestGameEngineIntegration_JumpingOverObstacles(t *testing.T) {
 		t.Log("Jumping dinosaur collides with large cactus (expected for insufficient jump height)")
 	} else {
 		t.Log("Jumping dinosaur clears large cactus (expected for sufficient jump height)")
+	}
+}
+func TestGameEngineStateTransitions(t *testing.T) {
+	config := NewDefaultConfig()
+	ge := NewGameEngine(config)
+
+	// Test Menu -> Playing transition
+	if !ge.CanTransitionTo(StatePlaying) {
+		t.Error("Should be able to transition from Menu to Playing")
+	}
+	if ge.CanTransitionTo(StateGameOver) {
+		t.Error("Should not be able to transition from Menu to GameOver")
+	}
+
+	// Transition to Playing
+	if !ge.TransitionTo(StatePlaying) {
+		t.Error("Should successfully transition to Playing")
+	}
+	if ge.GetState() != StatePlaying {
+		t.Error("State should be Playing after transition")
+	}
+	if !ge.IsRunning() {
+		t.Error("Game should be running in Playing state")
+	}
+	if !ge.IsInitialized() {
+		t.Error("Game should be initialized in Playing state")
+	}
+
+	// Test Playing -> GameOver transition
+	if !ge.CanTransitionTo(StateGameOver) {
+		t.Error("Should be able to transition from Playing to GameOver")
+	}
+	if !ge.CanTransitionTo(StateMenu) {
+		t.Error("Should be able to transition from Playing to Menu")
+	}
+
+	// Transition to GameOver
+	if !ge.TransitionTo(StateGameOver) {
+		t.Error("Should successfully transition to GameOver")
+	}
+	if ge.GetState() != StateGameOver {
+		t.Error("State should be GameOver after transition")
+	}
+	if ge.IsRunning() {
+		t.Error("Game should not be running in GameOver state")
+	}
+	if !ge.IsGameOver() {
+		t.Error("Game should be in game over state")
+	}
+
+	// Test GameOver -> Menu transition
+	if !ge.CanTransitionTo(StateMenu) {
+		t.Error("Should be able to transition from GameOver to Menu")
+	}
+	if !ge.CanTransitionTo(StatePlaying) {
+		t.Error("Should be able to transition from GameOver to Playing")
+	}
+
+	// Transition to Menu
+	if !ge.TransitionTo(StateMenu) {
+		t.Error("Should successfully transition to Menu")
+	}
+	if ge.GetState() != StateMenu {
+		t.Error("State should be Menu after transition")
+	}
+	if ge.IsRunning() {
+		t.Error("Game should not be running in Menu state")
+	}
+	if ge.IsGameOver() {
+		t.Error("Game should not be in game over state in Menu")
+	}
+}
+
+func TestGameEngineStateChangeCallback(t *testing.T) {
+	config := NewDefaultConfig()
+	ge := NewGameEngine(config)
+
+	var callbackCalled bool
+	var fromState, toState GameState
+
+	// Set callback
+	ge.SetStateChangeCallback(func(from, to GameState) {
+		callbackCalled = true
+		fromState = from
+		toState = to
+	})
+
+	// Trigger state change
+	ge.SetState(StatePlaying)
+
+	if !callbackCalled {
+		t.Error("State change callback should have been called")
+	}
+	if fromState != StateMenu {
+		t.Error("Callback should receive correct from state")
+	}
+	if toState != StatePlaying {
+		t.Error("Callback should receive correct to state")
+	}
+
+	// Reset callback test
+	callbackCalled = false
+	ge.SetState(StatePlaying) // Same state, should not trigger callback
+
+	if callbackCalled {
+		t.Error("Callback should not be called when setting same state")
+	}
+}
+
+func TestGameEngineInitializationAndCleanup(t *testing.T) {
+	config := NewDefaultConfig()
+	ge := NewGameEngine(config)
+
+	// Initially not initialized
+	if ge.IsInitialized() {
+		t.Error("Game should not be initialized initially")
+	}
+
+	// Start should initialize
+	ge.Start()
+	if !ge.IsInitialized() {
+		t.Error("Game should be initialized after Start()")
+	}
+
+	// Cleanup should reset initialization
+	ge.Cleanup()
+	if ge.IsInitialized() {
+		t.Error("Game should not be initialized after Cleanup()")
+	}
+	if ge.IsRunning() {
+		t.Error("Game should not be running after Cleanup()")
+	}
+	if ge.IsGameOver() {
+		t.Error("Game should not be in game over state after Cleanup()")
+	}
+}
+
+func TestGameEngineInvalidTransitions(t *testing.T) {
+	config := NewDefaultConfig()
+	ge := NewGameEngine(config)
+
+	// Try invalid transition from Menu to GameOver
+	if ge.TransitionTo(StateGameOver) {
+		t.Error("Should not be able to transition from Menu to GameOver")
+	}
+	if ge.GetState() != StateMenu {
+		t.Error("State should remain Menu after invalid transition")
+	}
+
+	// Move to Playing state
+	ge.TransitionTo(StatePlaying)
+
+	// All transitions from Playing should be valid
+	if !ge.CanTransitionTo(StateGameOver) {
+		t.Error("Should be able to transition from Playing to GameOver")
+	}
+	if !ge.CanTransitionTo(StateMenu) {
+		t.Error("Should be able to transition from Playing to Menu")
+	}
+}
+
+func TestGameEngineRestartFromGameOver(t *testing.T) {
+	config := NewDefaultConfig()
+	ge := NewGameEngine(config)
+
+	// Start game and wait to accumulate some duration
+	ge.Start()
+	time.Sleep(50 * time.Millisecond)
+	originalDuration := ge.GetGameDuration()
+	ge.TriggerGameOver()
+
+	if ge.GetState() != StateGameOver {
+		t.Error("State should be GameOver after TriggerGameOver()")
+	}
+
+	// Wait a bit more to ensure time difference
+	time.Sleep(10 * time.Millisecond)
+
+	// Restart should work from GameOver state
+	ge.Restart()
+
+	if ge.GetState() != StatePlaying {
+		t.Error("State should be Playing after Restart()")
+	}
+	if !ge.IsRunning() {
+		t.Error("Game should be running after Restart()")
+	}
+	if ge.IsGameOver() {
+		t.Error("Game should not be in game over state after Restart()")
+	}
+
+	// Game duration should be reset (new start time should be much smaller)
+	newDuration := ge.GetGameDuration()
+	if newDuration >= originalDuration {
+		t.Errorf("Game duration should be reset after restart. Original: %v, New: %v", originalDuration, newDuration)
+	}
+	if newDuration > 10*time.Millisecond {
+		t.Errorf("New game duration should be very small after restart, got: %v", newDuration)
+	}
+}
+
+func TestGameEngineRestartFromNonGameOverState(t *testing.T) {
+	config := NewDefaultConfig()
+	ge := NewGameEngine(config)
+
+	// Try restart from Menu state (should not work)
+	originalState := ge.GetState()
+	ge.Restart()
+
+	if ge.GetState() != originalState {
+		t.Error("Restart should not work from non-GameOver state")
+	}
+
+	// Try restart from Playing state (should not work)
+	ge.Start()
+	ge.Restart()
+
+	if ge.GetState() != StatePlaying {
+		t.Error("Restart should not work from Playing state")
+	}
+}
+
+func TestGameEngineStateTransitionHandling(t *testing.T) {
+	config := NewDefaultConfig()
+	ge := NewGameEngine(config)
+
+	// Test Menu state properties
+	ge.SetState(StateMenu)
+	if ge.IsRunning() {
+		t.Error("Game should not be running in Menu state")
+	}
+	if ge.IsGameOver() {
+		t.Error("Game should not be in game over state in Menu")
+	}
+
+	// Test Playing state properties
+	ge.SetState(StatePlaying)
+	if !ge.IsRunning() {
+		t.Error("Game should be running in Playing state")
+	}
+	if ge.IsGameOver() {
+		t.Error("Game should not be in game over state in Playing")
+	}
+	if !ge.IsInitialized() {
+		t.Error("Game should be initialized in Playing state")
+	}
+
+	// Test GameOver state properties
+	ge.SetState(StateGameOver)
+	if ge.IsRunning() {
+		t.Error("Game should not be running in GameOver state")
+	}
+	if !ge.IsGameOver() {
+		t.Error("Game should be in game over state in GameOver")
+	}
+}
+
+func TestGameEngineStopTransition(t *testing.T) {
+	config := NewDefaultConfig()
+	ge := NewGameEngine(config)
+
+	// Start the game
+	ge.Start()
+	if ge.GetState() != StatePlaying {
+		t.Error("State should be Playing after Start()")
+	}
+
+	// Stop should transition to Menu
+	ge.Stop()
+	if ge.GetState() != StateMenu {
+		t.Error("State should be Menu after Stop()")
+	}
+	if ge.IsRunning() {
+		t.Error("Game should not be running after Stop()")
+	}
+}
+
+func TestGameEngineResetFromDifferentStates(t *testing.T) {
+	config := NewDefaultConfig()
+	ge := NewGameEngine(config)
+
+	// Reset from Playing state
+	ge.Start()
+	ge.Reset()
+	if ge.GetState() != StateMenu {
+		t.Error("State should be Menu after Reset() from Playing")
+	}
+	if ge.IsInitialized() {
+		t.Error("Game should not be initialized after Reset()")
+	}
+
+	// Reset from GameOver state
+	ge.Start()
+	ge.TriggerGameOver()
+	ge.Reset()
+	if ge.GetState() != StateMenu {
+		t.Error("State should be Menu after Reset() from GameOver")
+	}
+	if ge.IsInitialized() {
+		t.Error("Game should not be initialized after Reset()")
 	}
 }

@@ -7,10 +7,12 @@ import (
 // GameEngine manages the overall game state and coordinates all game systems
 type GameEngine struct {
 	// Game state
-	state     GameState
-	running   bool
-	gameOver  bool
-	startTime time.Time
+	state         GameState
+	previousState GameState
+	running       bool
+	gameOver      bool
+	startTime     time.Time
+	initialized   bool
 
 	// Configuration
 	config *Config
@@ -22,14 +24,19 @@ type GameEngine struct {
 	// Game timing
 	lastUpdate time.Time
 	deltaTime  float64
+
+	// State transition callbacks
+	onStateChange func(from, to GameState)
 }
 
 // NewGameEngine creates a new game engine with the specified configuration
 func NewGameEngine(config *Config) *GameEngine {
 	return &GameEngine{
 		state:              StateMenu,
+		previousState:      StateMenu,
 		running:            false,
 		gameOver:           false,
+		initialized:        false,
 		config:             config,
 		collisionDetector:  NewCollisionDetector(),
 		collisionTolerance: 1.0, // Default tolerance for fair gameplay
@@ -42,9 +49,54 @@ func (ge *GameEngine) GetState() GameState {
 	return ge.state
 }
 
-// SetState sets the game state
+// SetState sets the game state and handles state transitions
 func (ge *GameEngine) SetState(state GameState) {
+	if ge.state == state {
+		return // No change needed
+	}
+
+	previousState := ge.state
+	ge.previousState = previousState
 	ge.state = state
+
+	// Handle state-specific logic
+	ge.handleStateTransition(previousState, state)
+
+	// Call state change callback if set
+	if ge.onStateChange != nil {
+		ge.onStateChange(previousState, state)
+	}
+}
+
+// GetPreviousState returns the previous game state
+func (ge *GameEngine) GetPreviousState() GameState {
+	return ge.previousState
+}
+
+// SetStateChangeCallback sets a callback function to be called when state changes
+func (ge *GameEngine) SetStateChangeCallback(callback func(from, to GameState)) {
+	ge.onStateChange = callback
+}
+
+// handleStateTransition handles logic when transitioning between states
+func (ge *GameEngine) handleStateTransition(from, to GameState) {
+	switch to {
+	case StateMenu:
+		ge.running = false
+		ge.gameOver = false
+	case StatePlaying:
+		if !ge.initialized {
+			ge.initialize()
+		}
+		ge.running = true
+		ge.gameOver = false
+		if from != StatePlaying {
+			ge.startTime = time.Now()
+		}
+	case StateGameOver:
+		ge.running = false
+		ge.gameOver = true
+	}
 }
 
 // IsRunning returns whether the game is currently running
@@ -57,27 +109,43 @@ func (ge *GameEngine) IsGameOver() bool {
 	return ge.gameOver
 }
 
-// Start starts the game engine
-func (ge *GameEngine) Start() {
-	ge.running = true
-	ge.gameOver = false
-	ge.state = StatePlaying
-	ge.startTime = time.Now()
+// Initialize initializes the game engine for gameplay
+func (ge *GameEngine) initialize() {
+	ge.initialized = true
 	ge.lastUpdate = time.Now()
+	// Additional initialization logic can be added here
 }
 
-// Stop stops the game engine
+// IsInitialized returns whether the game engine has been initialized
+func (ge *GameEngine) IsInitialized() bool {
+	return ge.initialized
+}
+
+// Start starts the game engine
+func (ge *GameEngine) Start() {
+	ge.SetState(StatePlaying)
+}
+
+// Stop stops the game engine and transitions to menu
 func (ge *GameEngine) Stop() {
+	ge.SetState(StateMenu)
+}
+
+// Cleanup performs cleanup operations when shutting down the game
+func (ge *GameEngine) Cleanup() {
 	ge.running = false
+	ge.gameOver = false
+	ge.initialized = false
+	ge.onStateChange = nil
+	// Additional cleanup logic can be added here
 }
 
 // Reset resets the game engine to initial state
 func (ge *GameEngine) Reset() {
-	ge.state = StateMenu
-	ge.running = false
-	ge.gameOver = false
+	ge.SetState(StateMenu)
 	ge.startTime = time.Time{}
 	ge.lastUpdate = time.Now()
+	ge.initialized = false
 }
 
 // Update updates the game engine timing
@@ -127,9 +195,7 @@ func (ge *GameEngine) GetCollisionInfo(rect1, rect2 Rectangle) CollisionInfo {
 
 // TriggerGameOver triggers the game over state
 func (ge *GameEngine) TriggerGameOver() {
-	ge.gameOver = true
-	ge.state = StateGameOver
-	ge.running = false
+	ge.SetState(StateGameOver)
 }
 
 // GetGameDuration returns how long the current game has been running
@@ -142,6 +208,31 @@ func (ge *GameEngine) GetGameDuration() time.Duration {
 
 // Restart restarts the game from game over state
 func (ge *GameEngine) Restart() {
-	ge.Reset()
-	ge.Start()
+	if ge.state == StateGameOver {
+		ge.Reset()
+		ge.Start()
+	}
+}
+
+// CanTransitionTo checks if a state transition is valid
+func (ge *GameEngine) CanTransitionTo(newState GameState) bool {
+	switch ge.state {
+	case StateMenu:
+		return newState == StatePlaying
+	case StatePlaying:
+		return newState == StateGameOver || newState == StateMenu
+	case StateGameOver:
+		return newState == StateMenu || newState == StatePlaying
+	default:
+		return false
+	}
+}
+
+// TransitionTo attempts to transition to a new state if valid
+func (ge *GameEngine) TransitionTo(newState GameState) bool {
+	if ge.CanTransitionTo(newState) {
+		ge.SetState(newState)
+		return true
+	}
+	return false
 }
