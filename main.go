@@ -178,32 +178,8 @@ func (g *Game) render() {
 
 // renderMenu renders the main menu
 func (g *Game) renderMenu() {
-	width, height := g.renderer.GetSize()
-
-	// Title
-	title := "CLI DINO GAME"
-	titleX := (width - len(title)) / 2
-	titleY := height/2 - 3
-	g.renderer.DrawString(titleX, titleY, title)
-
-	// Instructions
-	instructions := []string{
-		"Press SPACE or UP to jump",
-		"Press Q to quit",
-		"Press SPACE to start",
-	}
-
-	for i, instruction := range instructions {
-		instrX := (width - len(instruction)) / 2
-		instrY := titleY + 2 + i
-		g.renderer.DrawString(instrX, instrY, instruction)
-	}
-
-	// High score
-	highScore := fmt.Sprintf("High Score: %d", g.engine.GetHighScore())
-	scoreX := (width - len(highScore)) / 2
-	scoreY := height - 3
-	g.renderer.DrawString(scoreX, scoreY, highScore)
+	// Use the new start screen renderer
+	g.renderer.DrawStartScreen()
 }
 
 // renderGame renders the main gameplay
@@ -254,44 +230,21 @@ func (g *Game) renderObstacles() {
 
 // renderUI renders the game UI (score, etc.)
 func (g *Game) renderUI() {
-	// Current score
-	score := fmt.Sprintf("Score: %d", g.engine.GetCurrentScore())
-	g.renderer.DrawString(2, 1, score)
+	// Use the new score display renderer
+	g.renderer.DrawScore(g.engine.GetCurrentScore(), g.engine.GetHighScore())
 
-	// High score
-	highScore := fmt.Sprintf("High: %d", g.engine.GetHighScore())
-	g.renderer.DrawString(2, 2, highScore)
+	// Draw control instructions at the bottom
+	g.renderer.DrawControlInstructions()
 }
 
 // renderGameOver renders the game over screen
 func (g *Game) renderGameOver() {
-	width, height := g.renderer.GetSize()
-
-	// Game Over title
-	gameOver := "GAME OVER"
-	gameOverX := (width - len(gameOver)) / 2
-	gameOverY := height/2 - 2
-	g.renderer.DrawString(gameOverX, gameOverY, gameOver)
-
-	// Final score
-	finalScore := fmt.Sprintf("Final Score: %d", g.engine.GetCurrentScore())
-	scoreX := (width - len(finalScore)) / 2
-	scoreY := gameOverY + 2
-	g.renderer.DrawString(scoreX, scoreY, finalScore)
-
-	// High score indicator
-	if g.engine.IsNewHighScore() {
-		newHigh := "NEW HIGH SCORE!"
-		newHighX := (width - len(newHigh)) / 2
-		newHighY := scoreY + 1
-		g.renderer.DrawString(newHighX, newHighY, newHigh)
-	}
-
-	// Instructions
-	restart := "Press R to restart or Q to quit"
-	restartX := (width - len(restart)) / 2
-	restartY := height/2 + 4
-	g.renderer.DrawString(restartX, restartY, restart)
+	// Use the new game over screen renderer
+	g.renderer.DrawGameOverScreen(
+		g.engine.GetCurrentScore(),
+		g.engine.GetHighScore(),
+		g.engine.IsNewHighScore(),
+	)
 }
 
 // handleInput processes input events
