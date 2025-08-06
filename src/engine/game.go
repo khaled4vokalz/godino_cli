@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"cli-dino-game/src/score"
 	"time"
 )
 
@@ -17,6 +18,9 @@ type GameEngine struct {
 	// Configuration
 	config *Config
 
+	// Game scoring
+	gameScore *score.Score
+
 	// Collision detection
 	collisionDetector  *CollisionDetector
 	collisionTolerance float64 // For more forgiving gameplay
@@ -31,6 +35,10 @@ type GameEngine struct {
 
 // NewGameEngine creates a new game engine with the specified configuration
 func NewGameEngine(config *Config) *GameEngine {
+	gameScore := score.NewScore()
+	// Load high score from persistent storage
+	gameScore.LoadHighScoreInto()
+
 	return &GameEngine{
 		state:              StateMenu,
 		previousState:      StateMenu,
@@ -38,6 +46,7 @@ func NewGameEngine(config *Config) *GameEngine {
 		gameOver:           false,
 		initialized:        false,
 		config:             config,
+		gameScore:          gameScore,
 		collisionDetector:  NewCollisionDetector(),
 		collisionTolerance: 1.0, // Default tolerance for fair gameplay
 		lastUpdate:         time.Now(),
@@ -92,10 +101,15 @@ func (ge *GameEngine) handleStateTransition(from, to GameState) {
 		ge.gameOver = false
 		if from != StatePlaying {
 			ge.startTime = time.Now()
+			ge.ResetScore() // Reset score when starting a new game
 		}
 	case StateGameOver:
 		ge.running = false
 		ge.gameOver = true
+		// Finalize score when game ends
+		if ge.gameScore != nil {
+			ge.FinalizeScore()
+		}
 	}
 }
 
@@ -148,11 +162,14 @@ func (ge *GameEngine) Reset() {
 	ge.initialized = false
 }
 
-// Update updates the game engine timing
+// Update updates the game engine timing and score
 func (ge *GameEngine) Update() {
 	now := time.Now()
 	ge.deltaTime = now.Sub(ge.lastUpdate).Seconds()
 	ge.lastUpdate = now
+
+	// Update score if game is playing
+	ge.UpdateScore()
 }
 
 // GetDeltaTime returns the time elapsed since the last update
@@ -233,6 +250,64 @@ func (ge *GameEngine) TransitionTo(newState GameState) bool {
 	if ge.CanTransitionTo(newState) {
 		ge.SetState(newState)
 		return true
+	}
+	return false
+}
+
+// GetScore returns the game score instance
+func (ge *GameEngine) GetScore() *score.Score {
+	return ge.gameScore
+}
+
+// UpdateScore updates the game score based on elapsed time
+func (ge *GameEngine) UpdateScore() {
+	if ge.state == StatePlaying && ge.gameScore != nil {
+		ge.gameScore.Update(ge.deltaTime)
+	}
+}
+
+// AddObstacleBonus adds bonus points for passing an obstacle
+func (ge *GameEngine) AddObstacleBonus() {
+	if ge.gameScore != nil {
+		ge.gameScore.AddObstacleBonus()
+	}
+}
+
+// ResetScore resets the score for a new game
+func (ge *GameEngine) ResetScore() {
+	if ge.gameScore != nil {
+		ge.gameScore.Reset()
+	}
+}
+
+// FinalizeScore finalizes the score at game end and handles high score persistence
+func (ge *GameEngine) FinalizeScore() (bool, error) {
+	if ge.gameScore != nil {
+		return ge.gameScore.FinalizeScore()
+	}
+	return false, nil
+}
+
+// GetCurrentScore returns the current score value
+func (ge *GameEngine) GetCurrentScore() int {
+	if ge.gameScore != nil {
+		return ge.gameScore.GetCurrent()
+	}
+	return 0
+}
+
+// GetHighScore returns the high score value
+func (ge *GameEngine) GetHighScore() int {
+	if ge.gameScore != nil {
+		return ge.gameScore.GetHigh()
+	}
+	return 0
+}
+
+// IsNewHighScore checks if the current score is a new high score
+func (ge *GameEngine) IsNewHighScore() bool {
+	if ge.gameScore != nil {
+		return ge.gameScore.IsNewHighScore()
 	}
 	return false
 }

@@ -664,3 +664,96 @@ func TestGameEngineResetFromDifferentStates(t *testing.T) {
 		t.Error("Game should not be initialized after Reset()")
 	}
 }
+func TestGameEngineScoring(t *testing.T) {
+	config := NewDefaultConfig()
+	engine := NewGameEngine(config)
+
+	// Test initial score state
+	if engine.GetCurrentScore() != 0 {
+		t.Errorf("Expected initial current score to be 0, got %d", engine.GetCurrentScore())
+	}
+
+	// Test score reset
+	engine.ResetScore()
+	if engine.GetCurrentScore() != 0 {
+		t.Errorf("Expected current score to be 0 after reset, got %d", engine.GetCurrentScore())
+	}
+}
+
+func TestGameEngineObstacleBonus(t *testing.T) {
+	config := NewDefaultConfig()
+	engine := NewGameEngine(config)
+
+	initialScore := engine.GetCurrentScore()
+	engine.AddObstacleBonus()
+
+	if engine.GetCurrentScore() <= initialScore {
+		t.Errorf("Expected score to increase after obstacle bonus, got %d", engine.GetCurrentScore())
+	}
+}
+
+func TestGameEngineScoreStateTransitions(t *testing.T) {
+	config := NewDefaultConfig()
+	engine := NewGameEngine(config)
+
+	// Start playing - should reset score
+	engine.SetState(StatePlaying)
+	initialScore := engine.GetCurrentScore()
+
+	// Add some score
+	engine.AddObstacleBonus()
+	if engine.GetCurrentScore() <= initialScore {
+		t.Error("Expected score to increase after obstacle bonus")
+	}
+
+	// Transition to game over - should finalize score
+	engine.SetState(StateGameOver)
+
+	// Start new game - should reset score
+	engine.SetState(StatePlaying)
+	if engine.GetCurrentScore() != 0 {
+		t.Errorf("Expected score to be reset when starting new game, got %d", engine.GetCurrentScore())
+	}
+}
+
+func TestGameEngineScoreUpdate(t *testing.T) {
+	config := NewDefaultConfig()
+	engine := NewGameEngine(config)
+
+	// Set to playing state
+	engine.SetState(StatePlaying)
+
+	// Simulate time passing
+	engine.Update()
+
+	// Score should be accessible
+	score := engine.GetScore()
+	if score == nil {
+		t.Error("Expected score instance to be available")
+	}
+}
+
+func TestGameEngineHighScore(t *testing.T) {
+	config := NewDefaultConfig()
+	engine := NewGameEngine(config)
+
+	// Test high score functionality
+	initialHigh := engine.GetHighScore()
+
+	// Set a score higher than current high score
+	engine.GetScore().Current = initialHigh + 100
+
+	if !engine.IsNewHighScore() {
+		t.Error("Expected IsNewHighScore to return true when current > high")
+	}
+
+	// Finalize score
+	isNewHigh, err := engine.FinalizeScore()
+	if err != nil {
+		t.Fatalf("Failed to finalize score: %v", err)
+	}
+
+	if !isNewHigh {
+		t.Error("Expected FinalizeScore to return true for new high score")
+	}
+}
