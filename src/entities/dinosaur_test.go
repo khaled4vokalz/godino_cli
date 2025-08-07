@@ -138,33 +138,33 @@ func TestDinosaurGetASCIIArt_Running(t *testing.T) {
 	if len(art) == 0 {
 		t.Error("Expected ASCII art to have content")
 	}
-	if len(art) != 6 {
-		t.Errorf("Expected ASCII art to have 6 lines, got %d", len(art))
+	if len(art) != 4 {
+		t.Errorf("Expected ASCII art to have 4 lines, got %d", len(art))
 	}
 
 	// Test frame 1
 	dino.AnimFrame = 1
 	art2 := dino.GetASCIIArt()
-	if len(art2) != 6 {
-		t.Errorf("Expected ASCII art to have 6 lines, got %d", len(art2))
+	if len(art2) != 4 {
+		t.Errorf("Expected ASCII art to have 4 lines, got %d", len(art2))
 	}
 
 	// Test frame 2
 	dino.AnimFrame = 2
 	art3 := dino.GetASCIIArt()
-	if len(art3) != 6 {
-		t.Errorf("Expected ASCII art to have 6 lines, got %d", len(art3))
+	if len(art3) != 4 {
+		t.Errorf("Expected ASCII art to have 4 lines, got %d", len(art3))
 	}
 
 	// Test frame 3
 	dino.AnimFrame = 3
 	art4 := dino.GetASCIIArt()
-	if len(art4) != 6 {
-		t.Errorf("Expected ASCII art to have 6 lines, got %d", len(art4))
+	if len(art4) != 4 {
+		t.Errorf("Expected ASCII art to have 4 lines, got %d", len(art4))
 	}
 
 	// The frames should be different from each other
-	if art[5] == art2[5] && art2[5] == art3[5] && art3[5] == art4[5] {
+	if art[3] == art2[3] && art2[3] == art3[3] && art3[3] == art4[3] {
 		t.Error("Expected different ASCII art between animation frames")
 	}
 }
@@ -177,8 +177,8 @@ func TestDinosaurGetASCIIArt_Jumping(t *testing.T) {
 	if len(art) == 0 {
 		t.Error("Expected ASCII art to have content")
 	}
-	if len(art) != 6 {
-		t.Errorf("Expected ASCII art to have 6 lines, got %d", len(art))
+	if len(art) != 4 {
+		t.Errorf("Expected ASCII art to have 4 lines, got %d", len(art))
 	}
 }
 

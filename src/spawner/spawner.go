@@ -40,8 +40,8 @@ func NewObstacleSpawner(config *engine.Config, screenWidth, groundLevel float64)
 		baseSpawnRate:    config.SpawnRate,
 		maxSpawnRate:     config.SpawnRate * 3.0,  // Max 3x base rate
 		difficultyRamp:   0.1,                     // Difficulty increases by 10% every 10 seconds
-		minSpawnInterval: time.Millisecond * 800,  // Minimum 0.8 seconds between spawns
-		maxSpawnInterval: time.Millisecond * 3000, // Maximum 3 seconds between spawns
+		minSpawnInterval: time.Millisecond * 300,  // Minimum 0.3 seconds between spawns
+		maxSpawnInterval: time.Millisecond * 2500, // Maximum 2.5 seconds between spawns
 		typeWeights: map[entities.ObstacleType]float64{
 			entities.CactusSmall:  0.5, // 50% chance
 			entities.CactusMedium: 0.3, // 30% chance
@@ -81,8 +81,8 @@ func (s *ObstacleSpawner) spawnObstacle() {
 	// Choose obstacle type based on weighted distribution
 	obstType := s.selectObstacleType()
 
-	// Spawn obstacle off-screen to the right
-	spawnX := s.screenWidth + 5.0 // Spawn 5 units off-screen
+	// Calculate spawn position with proper spacing
+	spawnX := s.calculateSpawnPosition()
 
 	// Create new obstacle
 	obstacle := entities.NewObstacle(obstType, spawnX, s.groundLevel, s.config)
@@ -104,8 +104,8 @@ func (s *ObstacleSpawner) scheduleNextSpawn() {
 	// Convert spawn rate to interval (seconds between spawns)
 	baseInterval := 1.0 / currentSpawnRate
 
-	// Add randomness to the interval (±30% variation)
-	randomFactor := 0.7 + s.rng.Float64()*0.6 // Range: 0.7 to 1.3
+	// Add randomness to the interval (±50% variation)
+	randomFactor := 0.5 + s.rng.Float64()*1.0 // Range: 0.5 to 1.5
 	interval := time.Duration(baseInterval*randomFactor*1000) * time.Millisecond
 
 	// Clamp to min/max intervals
@@ -117,6 +117,40 @@ func (s *ObstacleSpawner) scheduleNextSpawn() {
 	}
 
 	s.nextSpawnDelay = interval
+}
+
+// calculateSpawnPosition determines where to spawn the next obstacle with random spacing
+func (s *ObstacleSpawner) calculateSpawnPosition() float64 {
+	// Base spawn position (just off-screen)
+	baseSpawnX := s.screenWidth + 2.0
+
+	// Find the rightmost active obstacle that's still relevant for spacing
+	rightmostX := baseSpawnX
+	for _, obstacle := range s.obstacles {
+		if obstacle.IsActive() && obstacle.X > s.screenWidth-20.0 { // Only consider obstacles near or off-screen
+			obstacleRight := obstacle.X + obstacle.Width
+			if obstacleRight > rightmostX {
+				rightmostX = obstacleRight
+			}
+		}
+	}
+
+	// Define minimum and maximum gaps between obstacles
+	minGap := 15.0 // Minimum distance for jumpability
+	maxGap := 45.0 // Maximum distance to keep game challenging
+
+	// Generate random gap within the range
+	randomGap := minGap + s.rng.Float64()*(maxGap-minGap)
+
+	// Calculate final spawn position
+	spawnX := rightmostX + randomGap
+
+	// Ensure we don't spawn too close to screen edge
+	if spawnX < baseSpawnX {
+		spawnX = baseSpawnX + randomGap
+	}
+
+	return spawnX
 }
 
 // selectObstacleType chooses an obstacle type based on weighted distribution

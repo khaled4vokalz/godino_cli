@@ -149,17 +149,17 @@ func TestObstacleGetASCIIArt(t *testing.T) {
 		{
 			name:         "Small cactus ASCII",
 			obstType:     CactusSmall,
-			expectedRows: 4,
+			expectedRows: 3,
 		},
 		{
 			name:         "Medium cactus ASCII",
 			obstType:     CactusMedium,
-			expectedRows: 6,
+			expectedRows: 4,
 		},
 		{
 			name:         "Large cactus ASCII",
 			obstType:     CactusLarge,
-			expectedRows: 8,
+			expectedRows: 5,
 		},
 	}
 

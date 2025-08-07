@@ -6,6 +6,7 @@ import (
 	"cli-dino-game/src/input"
 	"cli-dino-game/src/render"
 	"cli-dino-game/src/spawner"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -57,11 +58,14 @@ func NewGame() (*Game, error) {
 	inputHandler := input.NewInputHandler()
 
 	// Create dinosaur
-	groundLevel := float64(config.ScreenHeight - 7) // Leave space for dinosaur sprite
+	groundLevel := float64(config.ScreenHeight - 5) // Leave space for dinosaur sprite
 	dinosaur := entities.NewDinosaur(groundLevel)
 
+	// Calculate the actual ground line position (where obstacles should sit)
+	actualGroundY := groundLevel + dinosaur.Height
+
 	// Create obstacle spawner
-	obstacleSpawner := spawner.NewObstacleSpawner(config, float64(config.ScreenWidth), groundLevel)
+	obstacleSpawner := spawner.NewObstacleSpawner(config, float64(config.ScreenWidth), actualGroundY)
 
 	// Setup graceful shutdown
 	shutdownChan := make(chan os.Signal, 1)
@@ -83,11 +87,8 @@ func NewGame() (*Game, error) {
 
 // Run starts the main game loop
 func (g *Game) Run() error {
-	// Initialize terminal
-	if err := g.renderer.SetRawMode(); err != nil {
-		return fmt.Errorf("failed to set raw mode: %w", err)
-	}
-	defer g.renderer.RestoreTerminal()
+	// Termbox is already initialized by the renderer
+	defer g.renderer.Close()
 
 	// Start input handler
 	if err := g.inputHandler.Start(); err != nil {
@@ -103,10 +104,6 @@ func (g *Game) Run() error {
 	// Initialize game state
 	g.running = true
 	g.engine.SetState(engine.StateMenu)
-
-	// Clear screen and hide cursor
-	g.renderer.ClearScreen()
-	g.renderer.HideCursor()
 
 	// Main game loop
 	for g.running {
@@ -187,8 +184,12 @@ func (g *Game) renderGame() {
 	// Render ground line
 	width, _ := g.renderer.GetSize()
 	groundY := int(g.dinosaur.GroundLevel) + int(g.dinosaur.Height)
+	groundChar := '-'
+	if g.config.UseUnicode {
+		groundChar = '▔'
+	}
 	for x := 0; x < width; x++ {
-		g.renderer.DrawAt(x, groundY, '▔')
+		g.renderer.DrawAt(x, groundY, groundChar)
 	}
 
 	// Render dinosaur
@@ -203,7 +204,7 @@ func (g *Game) renderGame() {
 
 // renderDinosaur renders the dinosaur sprite
 func (g *Game) renderDinosaur() {
-	art := g.dinosaur.GetASCIIArt()
+	art := g.dinosaur.GetASCIIArtWithConfig(g.config.UseUnicode)
 	x := int(g.dinosaur.X)
 	y := int(g.dinosaur.Y)
 
@@ -217,7 +218,7 @@ func (g *Game) renderObstacles() {
 	obstacles := g.spawner.GetObstacles()
 	for _, obstacle := range obstacles {
 		if obstacle.IsActive() {
-			art := obstacle.GetASCIIArt()
+			art := obstacle.GetASCIIArtWithConfig(g.config.UseUnicode)
 			x := int(obstacle.X)
 			y := int(obstacle.Y)
 
@@ -318,12 +319,24 @@ func (g *Game) Cleanup() {
 }
 
 func main() {
+	// Parse command line flags
+	useUnicode := flag.Bool("unicode", true, "Use Unicode characters for rendering (default: true for better visuals)")
+	asciiMode := flag.Bool("ascii", false, "Use ASCII characters instead of Unicode (for terminals with poor Unicode support)")
+	flag.Parse()
+
 	// Create game instance
 	game, err := NewGame()
 	if err != nil {
 		log.Fatalf("Failed to create game: %v", err)
 	}
 	defer game.Cleanup()
+
+	// Set Unicode preference
+	if *asciiMode {
+		game.config.UseUnicode = false
+	} else {
+		game.config.UseUnicode = *useUnicode
+	}
 
 	// Run the game
 	if err := game.Run(); err != nil {

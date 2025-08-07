@@ -39,8 +39,8 @@ func NewDinosaur(groundLevel float64) *Dinosaur {
 		GroundLevel:    groundLevel,
 		lastAnimUpdate: time.Now(),
 		animSpeed:      time.Millisecond * 150, // Animation frame duration for smoother 4-frame animation
-		Width:          8.0,                    // Width of dinosaur sprite
-		Height:         6.0,                    // Height of dinosaur sprite
+		Width:          6.0,                    // Width of dinosaur sprite
+		Height:         4.0,                    // Height of dinosaur sprite
 	}
 }
 
@@ -100,69 +100,105 @@ func (d *Dinosaur) GetBounds() engine.Rectangle {
 
 // GetASCIIArt returns the ASCII art representation of the dinosaur
 func (d *Dinosaur) GetASCIIArt() []string {
+	return d.GetASCIIArtWithConfig(false) // Default to ASCII
+}
+
+// GetASCIIArtWithConfig returns the ASCII art with Unicode/ASCII choice
+func (d *Dinosaur) GetASCIIArtWithConfig(useUnicode bool) []string {
 	if d.IsJumping {
-		// Jumping dinosaur sprite
-		return []string{
-			"        ████████",
-			"        ██    ██",
-			"        ████████",
-			"        ██████  ",
-			"██      ██      ",
-			"████    ██      ",
+		if useUnicode {
+			return []string{
+				"  ████",
+				"  █  █",
+				"  ████",
+				"█ ██  ",
+			}
+		} else {
+			return []string{
+				"  ####",
+				"  #  #",
+				"  ####",
+				"# ##  ",
+			}
 		}
 	}
 
-	// Running animation with 4 frames for smoother animation
-	switch d.AnimFrame {
-	case 0:
-		// Running frame 1 - left leg forward
-		return []string{
-			"        ████████",
-			"        ██    ██",
-			"        ████████",
-			"        ██████  ",
-			"██      ██      ",
-			"████    ██  ██  ",
+	// Running animation with 4 frames for smoother animation - compact version
+	if useUnicode {
+		switch d.AnimFrame {
+		case 0:
+			return []string{
+				"  ████",
+				"  █  █",
+				"  ████",
+				"█ ██ █",
+			}
+		case 1:
+			return []string{
+				"  ████",
+				"  █  █",
+				"  ████",
+				"█ ███ ",
+			}
+		case 2:
+			return []string{
+				"  ████",
+				"  █  █",
+				"  ████",
+				"█ █ ██",
+			}
+		case 3:
+			return []string{
+				"  ████",
+				"  █  █",
+				"  ████",
+				"█  ██ ",
+			}
+		default:
+			return []string{
+				"  ████",
+				"  █  █",
+				"  ████",
+				"█ ██ █",
+			}
 		}
-	case 1:
-		// Running frame 2 - both legs center
-		return []string{
-			"        ████████",
-			"        ██    ██",
-			"        ████████",
-			"        ██████  ",
-			"██      ██      ",
-			"████    ████    ",
-		}
-	case 2:
-		// Running frame 3 - right leg forward
-		return []string{
-			"        ████████",
-			"        ██    ██",
-			"        ████████",
-			"        ██████  ",
-			"██      ██      ",
-			"████    ██    ██",
-		}
-	case 3:
-		// Running frame 4 - both legs center (slight variation)
-		return []string{
-			"        ████████",
-			"        ██    ██",
-			"        ████████",
-			"        ██████  ",
-			"██      ██      ",
-			"████      ██    ",
-		}
-	default:
-		// Fallback to frame 0
-		return []string{
-			"        ████████",
-			"        ██    ██",
-			"        ████████",
-			"        ██████  ",
-			"██      ██      ",
-			"████    ██  ██  ",
+	} else {
+		switch d.AnimFrame {
+		case 0:
+			return []string{
+				"  ####",
+				"  #  #",
+				"  ####",
+				"# ## #",
+			}
+		case 1:
+			return []string{
+				"  ####",
+				"  #  #",
+				"  ####",
+				"# ### ",
+			}
+		case 2:
+			return []string{
+				"  ####",
+				"  #  #",
+				"  ####",
+				"# # ##",
+			}
+		case 3:
+			return []string{
+				"  ####",
+				"  #  #",
+				"  ####",
+				"#  ## ",
+			}
+		default:
+			return []string{
+				"  ####",
+				"  #  #",
+				"  ####",
+				"# ## #",
+			}
 		}
 	}
 }

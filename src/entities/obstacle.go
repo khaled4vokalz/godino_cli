@@ -56,17 +56,17 @@ func NewObstacle(obstType ObstacleType, x, groundLevel float64, config *engine.C
 	// Set dimensions based on obstacle type
 	switch obstType {
 	case CactusSmall:
-		obstacle.Width = 2.0
-		obstacle.Height = 4.0
-		obstacle.Y = groundLevel - obstacle.Height + 1 // Adjust Y to sit on ground
+		obstacle.Width = 3.0
+		obstacle.Height = 3.0
+		obstacle.Y = groundLevel - obstacle.Height // Adjust Y to sit on ground
 	case CactusMedium:
 		obstacle.Width = 3.0
-		obstacle.Height = 6.0
-		obstacle.Y = groundLevel - obstacle.Height + 1
+		obstacle.Height = 4.0
+		obstacle.Y = groundLevel - obstacle.Height
 	case CactusLarge:
-		obstacle.Width = 4.0
-		obstacle.Height = 8.0
-		obstacle.Y = groundLevel - obstacle.Height + 1
+		obstacle.Width = 5.0
+		obstacle.Height = 5.0
+		obstacle.Y = groundLevel - obstacle.Height
 	}
 
 	return obstacle
@@ -99,41 +99,70 @@ func (o *Obstacle) GetBounds() engine.Rectangle {
 
 // GetASCIIArt returns the ASCII art representation of the obstacle
 func (o *Obstacle) GetASCIIArt() []string {
-	switch o.ObstType {
-	case CactusSmall:
-		return []string{
-			"  ██",
-			"  ██",
-			"  ██",
-			"██████",
+	return o.GetASCIIArtWithConfig(false) // Default to ASCII
+}
+
+// GetASCIIArtWithConfig returns the ASCII art with Unicode/ASCII choice
+func (o *Obstacle) GetASCIIArtWithConfig(useUnicode bool) []string {
+	if useUnicode {
+		switch o.ObstType {
+		case CactusSmall:
+			return []string{
+				" █",
+				" █",
+				"███",
+			}
+		case CactusMedium:
+			return []string{
+				" █ ",
+				"███",
+				" █ ",
+				"███",
+			}
+		case CactusLarge:
+			return []string{
+				"  █  ",
+				"█████",
+				"  █  ",
+				"  █  ",
+				"█████",
+			}
+		default:
+			return []string{
+				" █",
+				" █",
+				"███",
+			}
 		}
-	case CactusMedium:
-		return []string{
-			"  ██  ",
-			"██████",
-			"  ██  ",
-			"  ██  ",
-			"  ██  ",
-			"██████",
-		}
-	case CactusLarge:
-		return []string{
-			"    ██    ",
-			"    ██    ",
-			"██████████",
-			"    ██    ",
-			"    ██    ",
-			"    ██    ",
-			"    ██    ",
-			"██████████",
-		}
-	default:
-		// Fallback to small cactus
-		return []string{
-			"  ██",
-			"  ██",
-			"  ██",
-			"██████",
+	} else {
+		switch o.ObstType {
+		case CactusSmall:
+			return []string{
+				" #",
+				" #",
+				"###",
+			}
+		case CactusMedium:
+			return []string{
+				" # ",
+				"###",
+				" # ",
+				"###",
+			}
+		case CactusLarge:
+			return []string{
+				"  #  ",
+				"#####",
+				"  #  ",
+				"  #  ",
+				"#####",
+			}
+		default:
+			return []string{
+				" #",
+				" #",
+				"###",
+			}
 		}
 	}
 }

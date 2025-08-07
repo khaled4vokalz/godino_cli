@@ -21,6 +21,9 @@ type Config struct {
 
 	// Gameplay parameters
 	SpawnRate float64 `json:"spawn_rate"`
+
+	// Rendering options
+	UseUnicode bool `json:"use_unicode"`
 }
 
 // GameState represents the current state of the game
@@ -59,11 +62,12 @@ func NewDefaultConfig() *Config {
 	return &Config{
 		ScreenWidth:   80,
 		ScreenHeight:  20,
-		TargetFPS:     30,
-		JumpVelocity:  15.0,
-		Gravity:       50.0,
-		ObstacleSpeed: 20.0,
+		TargetFPS:     15,
+		JumpVelocity:  25.0,
+		Gravity:       60.0,
+		ObstacleSpeed: 18.0,
 		SpawnRate:     2.0,
+		UseUnicode:    true, // Default to Unicode for better visuals
 	}
 }
 

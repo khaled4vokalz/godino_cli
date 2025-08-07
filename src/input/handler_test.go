@@ -35,35 +35,6 @@ func TestGetInputChannel(t *testing.T) {
 	}
 }
 
-func TestParseKey(t *testing.T) {
-	handler := NewInputHandler()
-
-	tests := []struct {
-		input    []byte
-		expected Key
-		name     string
-	}{
-		{[]byte{' '}, KeySpace, "space key"},
-		{[]byte{'q'}, KeyQ, "lowercase q"},
-		{[]byte{'Q'}, KeyQ, "uppercase Q"},
-		{[]byte{'r'}, KeyR, "lowercase r"},
-		{[]byte{'R'}, KeyR, "uppercase R"},
-		{[]byte{3}, KeyCtrlC, "Ctrl+C"},
-		{[]byte{27, 91, 65}, KeyUp, "up arrow"},
-		{[]byte{'x'}, KeyUnknown, "unknown key"},
-		{[]byte{}, KeyUnknown, "empty input"},
-		{[]byte{27, 91, 66}, KeyUnknown, "down arrow (unsupported)"},
-	}
-
-	for _, test := range tests {
-		result := handler.parseKey(test.input)
-		if result != test.expected {
-			t.Errorf("parseKey(%v) for %s: expected %v, got %v",
-				test.input, test.name, test.expected, result)
-		}
-	}
-}
-
 func TestInputHandlerChannelBuffering(t *testing.T) {
 	handler := NewInputHandler()
 

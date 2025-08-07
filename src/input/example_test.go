@@ -20,20 +20,16 @@ func ExampleInputHandler() {
 
 	fmt.Printf("Key: %s\n", event.Key.String())
 
-	// Demonstrate key parsing
-	handler2 := NewInputHandler()
-	spaceKey := handler2.parseKey([]byte{' '})
-	upKey := handler2.parseKey([]byte{27, 91, 65})
-
-	fmt.Printf("Space key parsed: %s\n", spaceKey.String())
-	fmt.Printf("Up arrow parsed: %s\n", upKey.String())
+	// Demonstrate key types
+	fmt.Printf("Space key: %s\n", KeySpace.String())
+	fmt.Printf("Up arrow: %s\n", KeyUp.String())
 
 	// Channel is available for communication
 	fmt.Printf("Input channel ready: %t\n", inputChan != nil)
 
 	// Output:
 	// Key: Space
-	// Space key parsed: Space
-	// Up arrow parsed: Up
+	// Space key: Space
+	// Up arrow: Up
 	// Input channel ready: true
 }
