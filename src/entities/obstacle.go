@@ -108,30 +108,30 @@ func (o *Obstacle) GetASCIIArtWithConfig(useUnicode bool) []string {
 		switch o.ObstType {
 		case CactusSmall:
 			return []string{
-				" █",
-				" █",
-				"███",
+				" ╷",
+				" │",
+				"═══",
 			}
 		case CactusMedium:
 			return []string{
-				" █ ",
-				"███",
-				" █ ",
-				"███",
+				" ╷ ",
+				"═╪═",
+				" │ ",
+				"═══",
 			}
 		case CactusLarge:
 			return []string{
-				"  █  ",
-				"█████",
-				"  █  ",
-				"  █  ",
-				"█████",
+				"  ╷  ",
+				"══╪══",
+				"  │  ",
+				"  │  ",
+				"═════",
 			}
 		default:
 			return []string{
-				" █",
-				" █",
-				"███",
+				" ╷",
+				" │",
+				"═══",
 			}
 		}
 	} else {

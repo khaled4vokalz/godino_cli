@@ -108,10 +108,10 @@ func (d *Dinosaur) GetASCIIArtWithConfig(useUnicode bool) []string {
 	if d.IsJumping {
 		if useUnicode {
 			return []string{
-				"  ████",
-				"  █  █",
-				"  ████",
-				"█ ██  ",
+				"  ╭──╮",
+				"  │◉◉│",
+				"  ╰──╯",
+				"╰ ╰╰  ",
 			}
 		} else {
 			return []string{
@@ -128,38 +128,38 @@ func (d *Dinosaur) GetASCIIArtWithConfig(useUnicode bool) []string {
 		switch d.AnimFrame {
 		case 0:
 			return []string{
-				"  ████",
-				"  █  █",
-				"  ████",
-				"█ ██ █",
+				"  ╭──╮",
+				"  │◉◉│",
+				"  ╰──╯",
+				"╰ ╰╰ ╰",
 			}
 		case 1:
 			return []string{
-				"  ████",
-				"  █  █",
-				"  ████",
-				"█ ███ ",
+				"  ╭──╮",
+				"  │◉◉│",
+				"  ╰──╯",
+				"╰ ╰╰╰ ",
 			}
 		case 2:
 			return []string{
-				"  ████",
-				"  █  █",
-				"  ████",
-				"█ █ ██",
+				"  ╭──╮",
+				"  │◉◉│",
+				"  ╰──╯",
+				"╰ ╰ ╰╰",
 			}
 		case 3:
 			return []string{
-				"  ████",
-				"  █  █",
-				"  ████",
-				"█  ██ ",
+				"  ╭──╮",
+				"  │◉◉│",
+				"  ╰──╯",
+				"╰  ╰╰ ",
 			}
 		default:
 			return []string{
-				"  ████",
-				"  █  █",
-				"  ████",
-				"█ ██ █",
+				"  ╭──╮",
+				"  │◉◉│",
+				"  ╰──╯",
+				"╰ ╰╰ ╰",
 			}
 		}
 	} else {

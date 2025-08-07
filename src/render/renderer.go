@@ -51,11 +51,13 @@ func (r *Renderer) DrawAt(x, y int, char rune) {
 
 // DrawString draws a string at the specified position
 func (r *Renderer) DrawString(x, y int, text string) {
-	for i, char := range text {
-		if x+i >= r.width {
+	charPos := 0
+	for _, char := range text {
+		if x+charPos >= r.width {
 			break
 		}
-		r.DrawAt(x+i, y, char)
+		r.DrawAt(x+charPos, y, char)
+		charPos++
 	}
 }
 
