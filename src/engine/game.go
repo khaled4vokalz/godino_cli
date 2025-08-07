@@ -48,7 +48,7 @@ func NewGameEngine(config *Config) *GameEngine {
 		config:             config,
 		gameScore:          gameScore,
 		collisionDetector:  NewCollisionDetector(),
-		collisionTolerance: 1.0, // Default tolerance for fair gameplay
+		collisionTolerance: 0.5, // Default tolerance for fair but not overly forgiving gameplay
 		lastUpdate:         time.Now(),
 	}
 }

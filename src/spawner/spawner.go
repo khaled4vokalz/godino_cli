@@ -43,9 +43,12 @@ func NewObstacleSpawner(config *engine.Config, screenWidth, groundLevel float64)
 		minSpawnInterval: time.Millisecond * 300,  // Minimum 0.3 seconds between spawns
 		maxSpawnInterval: time.Millisecond * 2500, // Maximum 2.5 seconds between spawns
 		typeWeights: map[entities.ObstacleType]float64{
-			entities.CactusSmall:  0.5, // 50% chance
-			entities.CactusMedium: 0.3, // 30% chance
-			entities.CactusLarge:  0.2, // 20% chance
+			entities.CactusSmall:  0.35, // 35% chance
+			entities.CactusMedium: 0.25, // 25% chance
+			entities.CactusLarge:  0.15, // 15% chance
+			entities.BirdLow:      0.10, // 10% chance
+			entities.BirdMid:      0.10, // 10% chance
+			entities.BirdHigh:     0.05, // 5% chance
 		},
 	}
 
@@ -153,11 +156,39 @@ func (s *ObstacleSpawner) calculateSpawnPosition() float64 {
 	return spawnX
 }
 
-// selectObstacleType chooses an obstacle type based on weighted distribution
+// selectObstacleType chooses an obstacle type based on weighted distribution and game time
 func (s *ObstacleSpawner) selectObstacleType() entities.ObstacleType {
+	// Create dynamic weights based on game time
+	weights := make(map[entities.ObstacleType]float64)
+
+	// Always include cacti
+	weights[entities.CactusSmall] = 0.5
+	weights[entities.CactusMedium] = 0.3
+	weights[entities.CactusLarge] = 0.2
+
+	// Only include birds after 5 seconds of gameplay (even earlier for testing)
+	if s.gameTime > 5.0 {
+		// Much more aggressive bird introduction
+		birdMultiplier := (s.gameTime - 5.0) / 10.0 // Reach full strength in just 10 seconds
+		if birdMultiplier > 1.0 {
+			birdMultiplier = 1.0
+		}
+
+		// Much higher bird weights - make them very visible
+		weights[entities.BirdLow] = 0.3 * birdMultiplier  // 30% at full strength
+		weights[entities.BirdMid] = 0.2 * birdMultiplier  // 20% at full strength
+		weights[entities.BirdHigh] = 0.1 * birdMultiplier // 10% at full strength
+
+		// Significantly reduce cactus weights to make room for birds
+		totalBirdWeight := weights[entities.BirdLow] + weights[entities.BirdMid] + weights[entities.BirdHigh]
+		weights[entities.CactusSmall] = 0.5 - (totalBirdWeight * 0.4)
+		weights[entities.CactusMedium] = 0.3 - (totalBirdWeight * 0.3)
+		weights[entities.CactusLarge] = 0.2 - (totalBirdWeight * 0.3)
+	}
+
 	// Calculate total weight
 	totalWeight := 0.0
-	for _, weight := range s.typeWeights {
+	for _, weight := range weights {
 		totalWeight += weight
 	}
 
@@ -166,7 +197,7 @@ func (s *ObstacleSpawner) selectObstacleType() entities.ObstacleType {
 
 	// Select type based on cumulative weights
 	cumulative := 0.0
-	for obstType, weight := range s.typeWeights {
+	for obstType, weight := range weights {
 		cumulative += weight
 		if randomValue <= cumulative {
 			return obstType
@@ -193,9 +224,9 @@ func (s *ObstacleSpawner) getCurrentSpawnRate() float64 {
 
 // getDifficultySpeedMultiplier calculates speed multiplier based on game time
 func (s *ObstacleSpawner) getDifficultySpeedMultiplier() float64 {
-	// Gradually increase obstacle speed over time
-	speedIncrease := 1.0 + (s.gameTime * 0.05 / 10.0) // 5% increase every 10 seconds
-	maxSpeedMultiplier := 2.0                         // Cap at 2x speed
+	// Gradually increase obstacle speed over time - more aggressive progression
+	speedIncrease := 1.0 + (s.gameTime * 0.1 / 5.0) // 10% increase every 5 seconds
+	maxSpeedMultiplier := 2.5                       // Cap at 2.5x speed
 
 	if speedIncrease > maxSpeedMultiplier {
 		speedIncrease = maxSpeedMultiplier

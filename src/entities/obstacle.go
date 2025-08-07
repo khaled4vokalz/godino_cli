@@ -2,6 +2,7 @@ package entities
 
 import (
 	"cli-dino-game/src/engine"
+	"time"
 )
 
 // ObstacleType represents different types of obstacles
@@ -11,6 +12,9 @@ const (
 	CactusSmall ObstacleType = iota
 	CactusMedium
 	CactusLarge
+	BirdLow
+	BirdMid
+	BirdHigh
 )
 
 // String returns the string representation of ObstacleType
@@ -22,6 +26,12 @@ func (ot ObstacleType) String() string {
 		return "CactusMedium"
 	case CactusLarge:
 		return "CactusLarge"
+	case BirdLow:
+		return "BirdLow"
+	case BirdMid:
+		return "BirdMid"
+	case BirdHigh:
+		return "BirdHigh"
 	default:
 		return "Unknown"
 	}
@@ -39,6 +49,11 @@ type Obstacle struct {
 	Width    float64      // Width for collision detection
 	Height   float64      // Height for collision detection
 
+	// Animation (for birds)
+	AnimFrame      int           // Current animation frame
+	lastAnimUpdate time.Time     // Last animation update time
+	animSpeed      time.Duration // Animation frame duration
+
 	// State
 	Active bool // Whether the obstacle is active (on screen)
 }
@@ -46,11 +61,14 @@ type Obstacle struct {
 // NewObstacle creates a new obstacle of the specified type
 func NewObstacle(obstType ObstacleType, x, groundLevel float64, config *engine.Config) *Obstacle {
 	obstacle := &Obstacle{
-		X:        x,
-		Y:        groundLevel,
-		Speed:    config.ObstacleSpeed,
-		ObstType: obstType,
-		Active:   true,
+		X:              x,
+		Y:              groundLevel,
+		Speed:          config.ObstacleSpeed,
+		ObstType:       obstType,
+		Active:         true,
+		AnimFrame:      0,
+		lastAnimUpdate: time.Now(),
+		animSpeed:      time.Millisecond * 200, // Wing flapping speed
 	}
 
 	// Set dimensions based on obstacle type
@@ -67,6 +85,22 @@ func NewObstacle(obstType ObstacleType, x, groundLevel float64, config *engine.C
 		obstacle.Width = 5.0
 		obstacle.Height = 5.0
 		obstacle.Y = groundLevel - obstacle.Height
+	case BirdLow:
+		obstacle.Width = 4.0  // Use full sprite width for more realistic collision
+		obstacle.Height = 2.0 // Use full sprite height for more realistic collision
+		// groundLevel passed here is actualGroundY (where ground line is drawn)
+		// Dinosaur is at (groundLevel - dinosaur.Height), which is (groundLevel - 4)
+		// So dinosaur occupies Y from (groundLevel - 4) to groundLevel
+		// BirdLow should be at dinosaur's lower body level
+		obstacle.Y = groundLevel - 3.0 // Bird at dinosaur lower body level
+	case BirdMid:
+		obstacle.Width = 4.0           // Use full sprite width
+		obstacle.Height = 2.0          // Use full sprite height
+		obstacle.Y = groundLevel - 4.0 // Bird at dinosaur middle body level
+	case BirdHigh:
+		obstacle.Width = 4.0           // Use full sprite width
+		obstacle.Height = 2.0          // Use full sprite height
+		obstacle.Y = groundLevel - 5.0 // Bird at dinosaur head level
 	}
 
 	return obstacle
@@ -81,10 +115,24 @@ func (o *Obstacle) Update(deltaTime float64) {
 	// Move obstacle from right to left
 	o.X -= o.Speed * deltaTime
 
+	// Update animation for birds
+	if o.isBird() {
+		now := time.Now()
+		if now.Sub(o.lastAnimUpdate) >= o.animSpeed {
+			o.AnimFrame = (o.AnimFrame + 1) % 2 // Birds have 2 animation frames
+			o.lastAnimUpdate = now
+		}
+	}
+
 	// Deactivate obstacle if it moves off-screen (left edge)
 	if o.X+o.Width < 0 {
 		o.Active = false
 	}
+}
+
+// isBird returns true if this obstacle is a bird type
+func (o *Obstacle) isBird() bool {
+	return o.ObstType == BirdLow || o.ObstType == BirdMid || o.ObstType == BirdHigh
 }
 
 // GetBounds returns the collision rectangle for the obstacle
@@ -127,6 +175,18 @@ func (o *Obstacle) GetASCIIArtWithConfig(useUnicode bool) []string {
 				"  │  ",
 				"═════",
 			}
+		case BirdLow, BirdMid, BirdHigh:
+			if o.AnimFrame == 0 {
+				return []string{
+					"◦▲◦▲", // Wings up
+					"▼ ▼ ",
+				}
+			} else {
+				return []string{
+					"◦▼◦▼", // Wings down
+					"▲ ▲ ",
+				}
+			}
 		default:
 			return []string{
 				" ╷",
@@ -156,6 +216,18 @@ func (o *Obstacle) GetASCIIArtWithConfig(useUnicode bool) []string {
 				"  #  ",
 				"  #  ",
 				"#####",
+			}
+		case BirdLow, BirdMid, BirdHigh:
+			if o.AnimFrame == 0 {
+				return []string{
+					"^o^o", // Wings up
+					" v v",
+				}
+			} else {
+				return []string{
+					"vo vo", // Wings down
+					" ^ ^",
+				}
 			}
 		default:
 			return []string{
