@@ -61,6 +61,34 @@ func (r *Renderer) DrawString(x, y int, text string) {
 	}
 }
 
+// DrawStringWithColor draws a string at the specified position with color
+func (r *Renderer) DrawStringWithColor(x, y int, text string, color string) {
+	charPos := 0
+	for _, char := range text {
+		if x+charPos >= r.width {
+			break
+		}
+		r.DrawAtWithColor(x+charPos, y, char, color)
+		charPos++
+	}
+}
+
+// DrawAtWithColor draws a character at the specified position with color
+func (r *Renderer) DrawAtWithColor(x, y int, char rune, color string) {
+	if x >= 0 && x < r.width && y >= 0 && y < r.height {
+		var fg termbox.Attribute
+		switch color {
+		case "ash", "grey", "gray":
+			fg = termbox.ColorWhite | termbox.AttrDim // Dimmed white for subtle grey
+		case "dark":
+			fg = termbox.ColorBlack
+		default:
+			fg = termbox.ColorDefault
+		}
+		termbox.SetCell(x, y, char, fg, termbox.ColorDefault)
+	}
+}
+
 // DrawBox draws a rectangular box
 func (r *Renderer) DrawBox(x, y, width, height int, char rune) {
 	for dy := 0; dy < height; dy++ {

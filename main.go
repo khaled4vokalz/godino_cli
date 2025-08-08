@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cli-dino-game/src/background"
 	"cli-dino-game/src/engine"
 	"cli-dino-game/src/entities"
 	"cli-dino-game/src/input"
@@ -22,6 +23,7 @@ type Game struct {
 	inputHandler *input.InputHandler
 	dinosaur     *entities.Dinosaur
 	spawner      *spawner.ObstacleSpawner
+	background   *background.BackgroundManager
 	config       *engine.Config
 
 	// Game loop control
@@ -67,6 +69,9 @@ func NewGame() (*Game, error) {
 	// Create obstacle spawner
 	obstacleSpawner := spawner.NewObstacleSpawner(config, float64(config.ScreenWidth), actualGroundY)
 
+	// Create background manager
+	backgroundManager := background.NewBackgroundManager(float64(config.ScreenWidth), float64(config.ScreenHeight), actualGroundY)
+
 	// Setup graceful shutdown
 	shutdownChan := make(chan os.Signal, 1)
 	signal.Notify(shutdownChan, os.Interrupt, syscall.SIGTERM)
@@ -77,6 +82,7 @@ func NewGame() (*Game, error) {
 		inputHandler: inputHandler,
 		dinosaur:     dinosaur,
 		spawner:      obstacleSpawner,
+		background:   backgroundManager,
 		config:       config,
 		running:      false,
 		shutdownChan: shutdownChan,
@@ -142,6 +148,9 @@ func (g *Game) update() {
 		// Update obstacle spawner
 		g.spawner.Update(deltaTime)
 
+		// Update background elements
+		g.background.Update(deltaTime)
+
 		// Check collisions
 		g.checkCollisions()
 
@@ -192,6 +201,9 @@ func (g *Game) renderGame() {
 		g.renderer.DrawAt(x, groundY, groundChar)
 	}
 
+	// Render background elements (behind everything else)
+	g.renderBackground()
+
 	// Render dinosaur
 	g.renderDinosaur()
 
@@ -225,6 +237,26 @@ func (g *Game) renderObstacles() {
 			for i, line := range art {
 				g.renderer.DrawString(x, y+i, line)
 			}
+		}
+	}
+}
+
+// renderBackground renders background elements (clouds, hills)
+func (g *Game) renderBackground() {
+	elements := g.background.GetElements()
+	for _, element := range elements {
+		sprite := element.GetSprite(g.config.UseUnicode)
+		x := int(element.X)
+		y := int(element.Y)
+
+		// Use different colors for different elements
+		color := "ash" // Default for clouds
+		if element.Type == background.Hill {
+			color = "dark" // Darker color for hills
+		}
+
+		for i, line := range sprite {
+			g.renderer.DrawStringWithColor(x, y+i, line, color)
 		}
 	}
 }
@@ -273,12 +305,14 @@ func (g *Game) handleInput(event input.InputEvent) {
 func (g *Game) startGame() {
 	g.engine.Start()
 	g.spawner.Reset()
+	g.background.Reset()
 }
 
 // restartGame restarts the game from game over state
 func (g *Game) restartGame() {
 	g.engine.Restart()
 	g.spawner.Reset()
+	g.background.Reset()
 }
 
 // checkCollisions checks for collisions between dinosaur and obstacles
