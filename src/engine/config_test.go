@@ -30,8 +30,8 @@ func TestNewDefaultConfig(t *testing.T) {
 	if config.ObstacleSpeed != 18.0 {
 		t.Errorf("Expected ObstacleSpeed 18.0, got %f", config.ObstacleSpeed)
 	}
-	if config.SpawnRate != 2.0 {
-		t.Errorf("Expected SpawnRate 2.0, got %f", config.SpawnRate)
+	if config.SpawnRate != 1.0 {
+		t.Errorf("Expected SpawnRate 1.0, got %f", config.SpawnRate)
 	}
 	if config.UseUnicode != true {
 		t.Errorf("Expected UseUnicode true, got %t", config.UseUnicode)
@@ -234,7 +234,7 @@ func TestGameStateString(t *testing.T) {
 func TestConfigString(t *testing.T) {
 	config := NewDefaultConfig()
 	result := config.String()
-	expected := "Config{Screen: 80x20, FPS: 15, Jump: 25.0, Gravity: 60.0, Speed: 18.0, Spawn: 2.0}"
+	expected := "Config{Screen: 80x20, FPS: 15, Jump: 25.0, Gravity: 60.0, Speed: 18.0, Spawn: 1.0}"
 
 	if result != expected {
 		t.Errorf("Expected '%s', got '%s'", expected, result)

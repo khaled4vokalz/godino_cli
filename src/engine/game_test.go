@@ -29,8 +29,8 @@ func TestNewGameEngine(t *testing.T) {
 		t.Error("Game engine should store the provided config")
 	}
 
-	if ge.GetCollisionTolerance() != 1.0 {
-		t.Error("Default collision tolerance should be 1.0")
+	if ge.GetCollisionTolerance() != 0.8 {
+		t.Error("Default collision tolerance should be 0.8")
 	}
 }
 

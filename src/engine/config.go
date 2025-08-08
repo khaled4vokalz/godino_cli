@@ -66,7 +66,7 @@ func NewDefaultConfig() *Config {
 		JumpVelocity:  25.0,
 		Gravity:       60.0,
 		ObstacleSpeed: 18.0,
-		SpawnRate:     2.0,
+		SpawnRate:     1.0, // Reduced from 2.0 - start with 1 obstacle per second
 		UseUnicode:    true, // Default to Unicode for better visuals
 	}
 }

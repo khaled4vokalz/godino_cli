@@ -38,17 +38,17 @@ func NewObstacleSpawner(config *engine.Config, screenWidth, groundLevel float64)
 		groundLevel:      groundLevel,
 		rng:              rand.New(rand.NewSource(time.Now().UnixNano())),
 		baseSpawnRate:    config.SpawnRate,
-		maxSpawnRate:     config.SpawnRate * 3.0,  // Max 3x base rate
-		difficultyRamp:   0.1,                     // Difficulty increases by 10% every 10 seconds
-		minSpawnInterval: time.Millisecond * 300,  // Minimum 0.3 seconds between spawns
-		maxSpawnInterval: time.Millisecond * 2500, // Maximum 2.5 seconds between spawns
+		maxSpawnRate:     config.SpawnRate * 2.0,  // Max 2x base rate (reduced from 3x)
+		difficultyRamp:   0.02,                    // Difficulty increases by 2% every 10 seconds (much gentler)
+		minSpawnInterval: time.Millisecond * 800,  // Minimum 0.8 seconds between spawns (increased)
+		maxSpawnInterval: time.Millisecond * 4000, // Maximum 4.0 seconds between spawns (increased)
 		typeWeights: map[entities.ObstacleType]float64{
-			entities.CactusSmall:  0.35, // 35% chance
-			entities.CactusMedium: 0.25, // 25% chance
-			entities.CactusLarge:  0.15, // 15% chance
-			entities.BirdLow:      0.10, // 10% chance
-			entities.BirdMid:      0.10, // 10% chance
-			entities.BirdHigh:     0.05, // 5% chance
+			entities.CactusSmall:  0.50, // 50% chance (increased for easier gameplay)
+			entities.CactusMedium: 0.30, // 30% chance 
+			entities.CactusLarge:  0.20, // 20% chance
+			entities.BirdLow:      0.00, // 0% chance initially (birds added later)
+			entities.BirdMid:      0.00, // 0% chance initially
+			entities.BirdHigh:     0.00, // 0% chance initially
 		},
 	}
 
@@ -107,8 +107,8 @@ func (s *ObstacleSpawner) scheduleNextSpawn() {
 	// Convert spawn rate to interval (seconds between spawns)
 	baseInterval := 1.0 / currentSpawnRate
 
-	// Add randomness to the interval (±50% variation)
-	randomFactor := 0.5 + s.rng.Float64()*1.0 // Range: 0.5 to 1.5
+	// Add randomness to the interval (±30% variation, less than before for more predictability)
+	randomFactor := 0.7 + s.rng.Float64()*0.6 // Range: 0.7 to 1.3 (was 0.5 to 1.5)
 	interval := time.Duration(baseInterval*randomFactor*1000) * time.Millisecond
 
 	// Clamp to min/max intervals
@@ -138,9 +138,26 @@ func (s *ObstacleSpawner) calculateSpawnPosition() float64 {
 		}
 	}
 
-	// Define minimum and maximum gaps between obstacles
-	minGap := 15.0 // Minimum distance for jumpability
-	maxGap := 45.0 // Maximum distance to keep game challenging
+	// Define minimum and maximum gaps between obstacles with progressive difficulty
+	baseMinGap := 25.0 // Base minimum distance for jumpability (increased from 15)
+	baseMaxGap := 60.0 // Base maximum distance (increased from 45)
+	
+	// Gradually reduce gaps as game progresses, but much more slowly
+	difficultyReduction := s.gameTime * 0.1 // Very slow gap reduction
+	if difficultyReduction > 8.0 { // Cap the reduction
+		difficultyReduction = 8.0
+	}
+	
+	minGap := baseMinGap - difficultyReduction
+	maxGap := baseMaxGap - difficultyReduction
+	
+	// Ensure minimum gaps don't go below reasonable limits
+	if minGap < 18.0 {
+		minGap = 18.0
+	}
+	if maxGap < 30.0 {
+		maxGap = 30.0
+	}
 
 	// Generate random gap within the range
 	randomGap := minGap + s.rng.Float64()*(maxGap-minGap)
@@ -161,28 +178,28 @@ func (s *ObstacleSpawner) selectObstacleType() entities.ObstacleType {
 	// Create dynamic weights based on game time
 	weights := make(map[entities.ObstacleType]float64)
 
-	// Always include cacti
+	// Always include cacti with base weights
 	weights[entities.CactusSmall] = 0.5
 	weights[entities.CactusMedium] = 0.3
 	weights[entities.CactusLarge] = 0.2
 
-	// Only include birds after 5 seconds of gameplay (even earlier for testing)
-	if s.gameTime > 5.0 {
-		// Much more aggressive bird introduction
-		birdMultiplier := (s.gameTime - 5.0) / 10.0 // Reach full strength in just 10 seconds
+	// Only include birds after 25 seconds of gameplay (reduced from 30 seconds)
+	if s.gameTime > 25.0 {
+		// Gradual bird introduction - reaches full strength after 30 seconds (reduced from 60)
+		birdMultiplier := (s.gameTime - 25.0) / 30.0 // Takes 30 seconds to reach full strength
 		if birdMultiplier > 1.0 {
 			birdMultiplier = 1.0
 		}
 
-		// Much higher bird weights - make them very visible
-		weights[entities.BirdLow] = 0.3 * birdMultiplier  // 30% at full strength
-		weights[entities.BirdMid] = 0.2 * birdMultiplier  // 20% at full strength
-		weights[entities.BirdHigh] = 0.1 * birdMultiplier // 10% at full strength
+		// Increased bird weights for more variety while keeping cacti primary
+		weights[entities.BirdLow] = 0.12 * birdMultiplier  // 12% at full strength (increased from 5%)
+		weights[entities.BirdMid] = 0.08 * birdMultiplier  // 8% at full strength (increased from 3%)
+		weights[entities.BirdHigh] = 0.05 * birdMultiplier // 5% at full strength (increased from 2%)
 
-		// Significantly reduce cactus weights to make room for birds
+		// Only slightly reduce cactus weights to make room for birds
 		totalBirdWeight := weights[entities.BirdLow] + weights[entities.BirdMid] + weights[entities.BirdHigh]
-		weights[entities.CactusSmall] = 0.5 - (totalBirdWeight * 0.4)
-		weights[entities.CactusMedium] = 0.3 - (totalBirdWeight * 0.3)
+		weights[entities.CactusSmall] = 0.5 - (totalBirdWeight * 0.3)
+		weights[entities.CactusMedium] = 0.3 - (totalBirdWeight * 0.4)
 		weights[entities.CactusLarge] = 0.2 - (totalBirdWeight * 0.3)
 	}
 
@@ -210,8 +227,8 @@ func (s *ObstacleSpawner) selectObstacleType() entities.ObstacleType {
 
 // getCurrentSpawnRate calculates the current spawn rate based on difficulty progression
 func (s *ObstacleSpawner) getCurrentSpawnRate() float64 {
-	// Increase spawn rate over time
-	difficultyMultiplier := 1.0 + (s.gameTime * s.difficultyRamp / 10.0)
+	// Increase spawn rate over time - much more gradually
+	difficultyMultiplier := 1.0 + (s.gameTime * s.difficultyRamp / 30.0) // Now takes 30 seconds for each 2% increase
 	currentRate := s.baseSpawnRate * difficultyMultiplier
 
 	// Cap at maximum spawn rate
@@ -224,9 +241,9 @@ func (s *ObstacleSpawner) getCurrentSpawnRate() float64 {
 
 // getDifficultySpeedMultiplier calculates speed multiplier based on game time
 func (s *ObstacleSpawner) getDifficultySpeedMultiplier() float64 {
-	// Gradually increase obstacle speed over time - more aggressive progression
-	speedIncrease := 1.0 + (s.gameTime * 0.1 / 5.0) // 10% increase every 5 seconds
-	maxSpeedMultiplier := 2.5                       // Cap at 2.5x speed
+	// Gradually increase obstacle speed over time - much more gradually
+	speedIncrease := 1.0 + (s.gameTime * 0.02 / 10.0) // 2% increase every 10 seconds (was 10% every 5 seconds)
+	maxSpeedMultiplier := 1.8                         // Cap at 1.8x speed (reduced from 2.5x)
 
 	if speedIncrease > maxSpeedMultiplier {
 		speedIncrease = maxSpeedMultiplier

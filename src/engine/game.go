@@ -48,7 +48,7 @@ func NewGameEngine(config *Config) *GameEngine {
 		config:             config,
 		gameScore:          gameScore,
 		collisionDetector:  NewCollisionDetector(),
-		collisionTolerance: 0.5, // Default tolerance for fair but not overly forgiving gameplay
+		collisionTolerance: 0.8, // Balanced tolerance - forgiving for cacti but still detects birds
 		lastUpdate:         time.Now(),
 	}
 }
