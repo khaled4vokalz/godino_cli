@@ -1,6 +1,7 @@
 package background
 
 import (
+	"math"
 	"math/rand"
 	"time"
 )
@@ -26,34 +27,96 @@ type BackgroundElement struct {
 	Variant int     // Different variants of the same type
 }
 
+// HillProfile represents a continuous hill landscape
+type HillProfile struct {
+	heights []float64 // Height at each X position
+	width   int        // Total width of the profile
+	offset  float64    // Current scroll offset
+	speed   float64    // Scroll speed
+}
+
 // BackgroundManager manages all background elements
 type BackgroundManager struct {
 	elements       []*BackgroundElement
+	hillProfile    *HillProfile
 	screenWidth    float64
 	screenHeight   float64
 	groundLevel    float64
 	rng            *rand.Rand
 	lastCloudSpawn time.Time
-	lastHillSpawn  time.Time
 }
 
 // NewBackgroundManager creates a new background manager
 func NewBackgroundManager(screenWidth, screenHeight, groundLevel float64) *BackgroundManager {
-	return &BackgroundManager{
+	bm := &BackgroundManager{
 		elements:     make([]*BackgroundElement, 0, 20),
 		screenWidth:  screenWidth,
 		screenHeight: screenHeight,
 		groundLevel:  groundLevel,
 		rng:          rand.New(rand.NewSource(time.Now().UnixNano())),
 	}
+	
+	// Create continuous hill profile
+	bm.hillProfile = bm.generateHillProfile()
+	
+	return bm
+}
+
+// generateHillProfile creates a continuous hill landscape using sine waves
+func (bm *BackgroundManager) generateHillProfile() *HillProfile {
+	// Create a wide profile that extends beyond screen for smooth scrolling
+	profileWidth := int(bm.screenWidth * 4) // 4x screen width for seamless looping
+	heights := make([]float64, profileWidth)
+	
+	// Generate continuous hills using multiple sine waves for natural variation
+	for x := 0; x < profileWidth; x++ {
+		// Combine multiple sine waves for natural-looking hills
+		normalizedX := float64(x) / float64(profileWidth) * 4 * math.Pi
+		
+		// Large rolling hills (base layer) - restored larger heights
+		baseHeight := 6.0 + 4.0*math.Sin(normalizedX*0.5)
+		
+		// Medium hills (detail layer) - restored
+		mediumHeight := 2.5 * math.Sin(normalizedX*1.2+1.5)
+		
+		// Small hills (fine detail layer) - restored
+		smallHeight := 1.2 * math.Sin(normalizedX*2.3+0.7)
+		
+		// Combine all layers with some randomness
+		totalHeight := baseHeight + mediumHeight + smallHeight + (bm.rng.Float64()-0.5)*1.0
+		
+		// Ensure minimum height and reasonable maximum
+		if totalHeight < 2.0 {
+			totalHeight = 2.0
+		}
+		if totalHeight > 15.0 { // Good height for dramatic but not overwhelming hills
+			totalHeight = 15.0
+		}
+		
+		heights[x] = totalHeight
+	}
+	
+	return &HillProfile{
+		heights: heights,
+		width:   profileWidth,
+		offset:  0,
+		speed:   8.0, // Hills scroll at medium speed
+	}
 }
 
 // Update updates all background elements
 func (bm *BackgroundManager) Update(deltaTime float64) {
-	// Spawn new elements periodically
+	// Update hill profile scrolling
+	bm.hillProfile.offset += bm.hillProfile.speed * deltaTime
+	// Loop the hills when we've scrolled through one cycle
+	if bm.hillProfile.offset >= float64(bm.hillProfile.width)/2 {
+		bm.hillProfile.offset = 0
+	}
+	
+	// Spawn clouds periodically
 	bm.spawnElements()
 
-	// Update existing elements
+	// Update existing cloud elements
 	for i := len(bm.elements) - 1; i >= 0; i-- {
 		element := bm.elements[i]
 		element.X -= element.Speed * deltaTime
@@ -69,65 +132,44 @@ func (bm *BackgroundManager) Update(deltaTime float64) {
 func (bm *BackgroundManager) spawnElements() {
 	now := time.Now()
 
-	// Spawn clouds every 20-40 seconds (very infrequent for larger, detailed clouds)
-	if now.Sub(bm.lastCloudSpawn) > time.Duration(20000+bm.rng.Intn(20000))*time.Millisecond {
+	// Spawn clouds every 15-30 seconds
+	if now.Sub(bm.lastCloudSpawn) > time.Duration(15000+bm.rng.Intn(15000))*time.Millisecond {
 		bm.spawnCloud()
 		bm.lastCloudSpawn = now
-	}
-
-	// Spawn hills much more frequently to ensure continuous coverage
-	if now.Sub(bm.lastHillSpawn) > time.Duration(2000+bm.rng.Intn(3000))*time.Millisecond {
-		bm.spawnHill()
-		bm.lastHillSpawn = now
 	}
 }
 
 // spawnCloud creates a new cloud element
 func (bm *BackgroundManager) spawnCloud() {
-	// Position clouds in the middle area of the screen (around 1/3 from top)
-	middleArea := bm.screenHeight / 3.0
-	cloudY := 2 + bm.rng.Float64()*middleArea // Clouds in middle area
+	// Position clouds in the upper area of the screen
+	upperArea := bm.screenHeight / 2.5
+	cloudY := 1 + bm.rng.Float64()*upperArea
 
 	cloud := &BackgroundElement{
 		Type:    Cloud,
-		X:       bm.screenWidth + 15,    // Start further off-screen for larger clouds
-		Y:       cloudY,                 // Position in middle area
-		Width:   15,                     // Wider for proper cloud shapes
-		Height:  2,                      // Exactly 2 lines tall
-		Speed:   2 + bm.rng.Float64()*1, // Slower movement for larger clouds
+		X:       bm.screenWidth + 10,
+		Y:       cloudY,
+		Width:   12 + bm.rng.Float64()*8, // Variable width clouds
+		Height:  2 + bm.rng.Float64()*1,  // Variable height clouds
+		Speed:   3 + bm.rng.Float64()*2,  // Slow parallax movement
 		Active:  true,
-		Variant: bm.rng.Intn(2), // 2 different cloud shapes
+		Variant: bm.rng.Intn(3), // 3 different cloud shapes
 	}
 	bm.elements = append(bm.elements, cloud)
 }
 
-// spawnHill creates a new hill element
-func (bm *BackgroundManager) spawnHill() {
-	// Create larger, more varied hills
-	hillHeight := 3 + bm.rng.Float64()*6 // Larger hills (3-9 units tall)
-
-	// Find the rightmost hill to connect to it
-	rightmostX := bm.screenWidth
-	for _, element := range bm.elements {
-		if element.Type == Hill && element.IsActive() {
-			elementRight := element.X + element.Width
-			if elementRight > rightmostX {
-				rightmostX = elementRight
-			}
-		}
+// GetHillHeightAt returns the hill height at a specific screen X coordinate
+func (bm *BackgroundManager) GetHillHeightAt(screenX float64) float64 {
+	// Calculate the position in the hill profile
+	profileX := int(bm.hillProfile.offset + screenX)
+	
+	// Loop the profile seamlessly
+	profileX = profileX % bm.hillProfile.width
+	if profileX < 0 {
+		profileX += bm.hillProfile.width
 	}
-
-	hill := &BackgroundElement{
-		Type:    Hill,
-		X:       rightmostX - 2, // Overlap slightly to connect hills
-		Y:       bm.groundLevel - hillHeight,
-		Width:   15 + bm.rng.Float64()*10, // Much wider hills (15-25 units)
-		Height:  hillHeight,
-		Speed:   6 + bm.rng.Float64()*2, // Faster movement for hills
-		Active:  true,
-		Variant: bm.rng.Intn(2), // 2 different hill shapes
-	}
-	bm.elements = append(bm.elements, hill)
+	
+	return bm.hillProfile.heights[profileX]
 }
 
 // IsActive returns whether the element is active (helper method)
@@ -153,7 +195,8 @@ func (bm *BackgroundManager) GetElements() []*BackgroundElement {
 func (bm *BackgroundManager) Reset() {
 	bm.elements = bm.elements[:0]
 	bm.lastCloudSpawn = time.Now()
-	bm.lastHillSpawn = time.Now()
+	// Regenerate hill profile for variety
+	bm.hillProfile = bm.generateHillProfile()
 }
 
 // GetSprite returns the sprite for a background element
@@ -164,34 +207,24 @@ func (be *BackgroundElement) GetSprite(useUnicode bool) []string {
 			switch be.Variant {
 			case 0:
 				return []string{
-					"  ▁▁▁▁▁▁▁▁▁  ",
-					"▁▁▁▁▁▁▁▁▁▁▁▁▁",
+					"  ☁☁☁☁☁☁☁☁  ",
+					"☁☁☁☁☁☁☁☁☁☁☁☁",
 				}
 			case 1:
 				return []string{
-					"   ▁▁▁▁▁▁   ",
-					"▁▁▁▁▁▁▁▁▁▁▁▁",
+					"   ☁☁☁☁☁☁   ",
+					"☁☁☁☁☁☁☁☁☁☁☁☁",
 				}
-			}
-		case Hill:
-			switch be.Variant {
-			case 0:
+			case 2:
 				return []string{
-					"      ▓▓▓▓▓▓      ",
-					"    ▓▓▓▓▓▓▓▓▓▓    ",
-					"  ▓▓▓▓▓▓▓▓▓▓▓▓▓▓  ",
-					"▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓",
-				}
-			case 1:
-				return []string{
-					"    ▓▓▓▓▓▓▓▓    ",
-					"  ▓▓▓▓▓▓▓▓▓▓▓▓  ",
-					"▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓",
+					"    ☁☁☁☁    ",
+					"  ☁☁☁☁☁☁☁☁  ",
+					"☁☁☁☁☁☁☁☁☁☁☁☁",
 				}
 			}
 		}
 	} else {
-		// ASCII versions - inspired by asciiart.eu cloud designs
+		// ASCII versions
 		switch be.Type {
 		case Cloud:
 			switch be.Variant {
@@ -199,28 +232,17 @@ func (be *BackgroundElement) GetSprite(useUnicode bool) []string {
 				return []string{
 					"    .-~~~-.    ",
 					"  .-~       ~-.",
-					" (             )",
 				}
 			case 1:
 				return []string{
 					"  .-~~~-.  ",
 					" (       ) ",
 				}
-			}
-		case Hill:
-			switch be.Variant {
-			case 0:
+			case 2:
 				return []string{
-					"      ######      ",
-					"    ############  ",
-					"  ################",
-					"##################",
-				}
-			case 1:
-				return []string{
-					"    ########    ",
-					"  ############  ",
-					"################",
+					"    .---.    ",
+					"  .-~     ~-.",
+					" (           )",
 				}
 			}
 		}

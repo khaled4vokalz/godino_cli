@@ -241,22 +241,100 @@ func (g *Game) renderObstacles() {
 	}
 }
 
-// renderBackground renders background elements (clouds, hills)
+// renderBackground renders background elements (continuous hills and clouds)
 func (g *Game) renderBackground() {
+	// Render continuous hills
+	g.renderContinuousHills()
+	
+	// Render clouds
 	elements := g.background.GetElements()
 	for _, element := range elements {
-		sprite := element.GetSprite(g.config.UseUnicode)
-		x := int(element.X)
-		y := int(element.Y)
+		if element.Type == background.Cloud {
+			sprite := element.GetSprite(g.config.UseUnicode)
+			x := int(element.X)
+			y := int(element.Y)
 
-		// Use different colors for different elements
-		color := "ash" // Default for clouds
-		if element.Type == background.Hill {
-			color = "dark" // Darker color for hills
+			for i, line := range sprite {
+				g.renderer.DrawStringWithColor(x, y+i, line, "ash")
+			}
 		}
+	}
+}
 
-		for i, line := range sprite {
-			g.renderer.DrawStringWithColor(x, y+i, line, color)
+// renderContinuousHills renders the continuous scrolling hills
+func (g *Game) renderContinuousHills() {
+	width, _ := g.renderer.GetSize()
+	groundY := int(g.dinosaur.GroundLevel) + int(g.dinosaur.Height)
+	
+	// Create hill profile for the current screen
+	hillProfile := make([]int, width)
+	for screenX := 0; screenX < width; screenX++ {
+		hillHeight := g.background.GetHillHeightAt(float64(screenX))
+		hillProfile[screenX] = int(hillHeight)
+	}
+	
+	// Draw only the hill silhouettes without filling
+	for screenX := 0; screenX < width; screenX++ {
+		currentHeight := hillProfile[screenX]
+		if currentHeight > 0 {
+			hillTopY := groundY - 1 - currentHeight
+			
+			if hillTopY >= 0 && hillTopY < int(g.config.ScreenHeight) {
+				// Get neighboring heights for curve detection
+				prevHeight := currentHeight
+				nextHeight := currentHeight
+				if screenX > 0 {
+					prevHeight = hillProfile[screenX-1]
+				}
+				if screenX < width-1 {
+					nextHeight = hillProfile[screenX+1]
+				}
+				
+				// Calculate height differences
+				leftDiff := currentHeight - prevHeight
+				rightDiff := currentHeight - nextHeight
+				
+				var hillChar rune
+				
+				// Choose character based on hill shape
+				if leftDiff > 0 && rightDiff > 0 {
+					// Peak
+					hillChar = '^'
+					if g.config.UseUnicode {
+						hillChar = '▲'
+					}
+				} else if leftDiff > 0 {
+					// Rising slope
+					hillChar = '/'
+					if g.config.UseUnicode {
+						hillChar = '╱'
+					}
+				} else if rightDiff > 0 {
+					// Falling slope
+					hillChar = '\\'
+					if g.config.UseUnicode {
+						hillChar = '╲'
+					}
+				} else {
+					// Flat or gentle curve
+					hillChar = '_'
+					if g.config.UseUnicode {
+						hillChar = '▔'
+					}
+				}
+				
+				// Draw the hill outline character
+				g.renderer.DrawStringWithColor(screenX, hillTopY, string(hillChar), "dark")
+				
+				// Add some depth by drawing a second line below for taller hills
+				if currentHeight > 8 && hillTopY+1 < int(g.config.ScreenHeight) {
+					depthChar := '▔'
+					if !g.config.UseUnicode {
+						depthChar = '_'
+					}
+					g.renderer.DrawStringWithColor(screenX, hillTopY+1, string(depthChar), "dark")
+				}
+			}
 		}
 	}
 }
